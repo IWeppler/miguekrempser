@@ -1,0 +1,182 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Mapeo de variables a utilidades de Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Sidebar específico (opcional, o puede heredar de card/muted) */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Gráficos */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Radios */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+/* SISTEMA DE DISEÑO - PALETA SEMÁNTICA 
+  Usamos OKLCH para consistencia y vibrancia.
+*/
+
+:root {
+  --radius: 0.5rem;
+
+  /* LIGHT MODE: Limpio, profesional, fondo gris muy tenue para resaltar cards blancas */
+  --background: oklch(0.985 0.002 247.8); /* Slate 50 muy suave */
+  --foreground: oklch(0.141 0.005 285.8); /* Slate 900 */
+
+  --card: oklch(1 0 0); /* Blanco puro */
+  --card-foreground: oklch(0.141 0.005 285.8);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.8);
+
+  /* PRIMARY: Verde Agro (Fuerte y profesional) */
+  --primary: oklch(0.48 0.16 145);
+  --primary-foreground: oklch(0.985 0 0);
+
+  /* SECONDARY: Para botones secundarios o fondos suaves */
+  --secondary: oklch(0.96 0.003 247.8);
+  --secondary-foreground: oklch(0.21 0.006 285.8);
+
+  /* MUTED: Textos secundarios, deshabilitados, fondos de inputs */
+  --muted: oklch(0.96 0.003 247.8);
+  --muted-foreground: oklch(0.55 0.01 285.8);
+
+  /* ACCENT: Hovers, elementos interactivos */
+  --accent: oklch(0.96 0.003 247.8);
+  --accent-foreground: oklch(0.21 0.006 285.8);
+
+  /* DESTRUCTIVE: Errores */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  /* BORDES: Sutiles pero visibles */
+  --border: oklch(0.92 0.004 286);
+  --input: oklch(0.92 0.004 286);
+  --ring: oklch(0.48 0.16 145); /* Mismo que primary */
+
+  /* SIDEBAR: En light mode suele ser blanco o gris muy claro */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.8);
+  --sidebar-primary: oklch(0.48 0.16 145);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.96 0.003 247.8);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.8);
+  --sidebar-border: oklch(0.92 0.004 286);
+  --sidebar-ring: oklch(0.48 0.16 145);
+
+  /* CHARTS: Paleta de datos */
+  --chart-1: oklch(0.48 0.16 145); /* Verde */
+  --chart-2: oklch(0.35 0.1 220); /* Azul */
+  --chart-3: oklch(0.4 0.12 30); /* Naranja */
+  --chart-4: oklch(0.55 0.15 90); /* Amarillo */
+  --chart-5: oklch(0.3 0.05 280); /* Violeta */
+}
+
+.dark {
+  /* DARK MODE: Profundo (Slate), evita el negro absoluto para reducir fatiga visual */
+  --background: oklch(0.11 0.015 250); /* Slate 950 profundo */
+  --foreground: oklch(0.985 0.002 247.8); /* Blanco sucio */
+
+  --card: oklch(
+    0.14 0.015 252
+  ); /* Slate 900 (un poco más claro que el fondo) */
+  --card-foreground: oklch(0.985 0.002 247.8);
+
+  --popover: oklch(0.14 0.015 252);
+  --popover-foreground: oklch(0.985 0.002 247.8);
+
+  /* PRIMARY: Verde un poco más luminoso para resaltar en fondo oscuro */
+  --primary: oklch(0.6 0.16 145);
+  --primary-foreground: oklch(0.11 0.015 250);
+
+  /* SECONDARY */
+  --secondary: oklch(0.2 0.015 252);
+  --secondary-foreground: oklch(0.985 0.002 247.8);
+
+  /* MUTED */
+  --muted: oklch(0.2 0.015 252);
+  --muted-foreground: oklch(0.7 0.01 250);
+
+  /* ACCENT */
+  --accent: oklch(0.2 0.015 252);
+  --accent-foreground: oklch(0.985 0.002 247.8);
+
+  /* DESTRUCTIVE */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  /* BORDES */
+  --border: oklch(0.2 0.015 252);
+  --input: oklch(0.2 0.015 252);
+  --ring: oklch(0.6 0.16 145);
+
+  /* SIDEBAR: Igual al card en dark mode */
+  --sidebar: oklch(0.14 0.015 252);
+  --sidebar-foreground: oklch(0.985 0.002 247.8);
+  --sidebar-primary: oklch(0.6 0.16 145);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.2 0.015 252);
+  --sidebar-accent-foreground: oklch(0.985 0.002 247.8);
+  --sidebar-border: oklch(0.2 0.015 252);
+  --sidebar-ring: oklch(0.6 0.16 145);
+
+  /* CHARTS: Ajustados para dark mode (más pastel/luminosos) */
+  --chart-1: oklch(0.6 0.16 145);
+  --chart-2: oklch(0.5 0.1 220);
+  --chart-3: oklch(0.55 0.12 30);
+  --chart-4: oklch(0.7 0.15 90);
+  --chart-5: oklch(0.5 0.05 280);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
