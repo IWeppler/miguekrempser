@@ -5,7 +5,7 @@ export interface Invoice {
   currency: "USD" | "ARS" | string;
   status: "pending" | "paid" | "overdue" | string;
   due_date: string;
-  file_url: string | null;
+  file_url?: string | null;
   suppliers: {
     name: string;
   } | null;
