@@ -8,7 +8,7 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen w-full grid lg:grid-cols-2 p-3 lg:p-4 overflow-hidden">
       {/* --- COLUMNA IZQUIERDA: IMAGEN FLOTANTE --- */}
-      <div className="hidden lg:block relative h-full w-full rounded-[40px] overflow-hidden bg-slate-900">
+      <div className="hidden lg:block relative h-full w-full rounded-[40px] overflow-hidden bg-background">
         <Image
           src="/login-image.jpg"
           alt="Campo inteligente"
@@ -32,7 +32,7 @@ export default function AuthLayout({
           <h2 className="text-4xl font-bold mb-4 leading-tight tracking-tight">
             Transforma tus ideas en cultivos exitosos.
           </h2>
-          <p className="text-slate-200 text-base leading-relaxed opacity-90">
+          <p className="text-white text-base leading-relaxed opacity-90">
             La plataforma integral para la gestión eficiente del ciclo
             productivo agropecuario.
           </p>
@@ -40,10 +40,10 @@ export default function AuthLayout({
       </div>
 
       {/* --- COLUMNA DERECHA: FORMULARIO --- */}
-      <div className="flex flex-col items-center justify-center w-full h-full bg-white">
+      <div className="flex flex-col items-center justify-center w-full h-full">
         <div className="w-full max-w-[480px] px-6 lg:px-8">{children}</div>
 
-        <div className="absolute bottom-6 text-center text-xs text-slate-400">
+        <div className="absolute bottom-6 text-center text-xs text-foreground/50">
           © 2026 AgroGestión Inc.
         </div>
       </div>

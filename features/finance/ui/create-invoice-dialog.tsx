@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useForm,
   useFieldArray,
@@ -49,8 +49,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Coins,
+  UploadCloud,
+  X,
+  FileIcon,
 } from "lucide-react";
 import { useDolar } from "@/shared/hooks/use-dolar";
+import { createClient } from "@/lib/supabase/client";
 
 interface Props {
   products: { id: string; name: string }[];
@@ -63,6 +67,11 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
   const [isNewSupplier, setIsNewSupplier] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const supabase = createClient();
 
   const { oficial, loading: loadingRate } = useDolar();
 
@@ -86,6 +95,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
 
   const currency = useWatch({ control: form.control, name: "currency" });
   const items = useWatch({ control: form.control, name: "items" });
+  
   const exchangeRate = useWatch({
     control: form.control,
     name: "exchangeRate",
@@ -112,18 +122,53 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
     setSubmitError(null);
     setSubmitSuccess(false);
 
-    const result = await createInvoice(values);
-    setIsSubmitting(false);
+    try {
+      let fileUrl = null;
 
-    if (result.error) {
-      setSubmitError(result.error);
-    } else {
-      setSubmitSuccess(true);
-      setTimeout(() => {
-        setOpen(false);
-        form.reset();
-        setSubmitSuccess(false);
-      }, 1500);
+      // 1. SUBIR IMAGEN (Si existe)
+      if (file) {
+        setIsUploading(true);
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("invoices")
+          .upload(filePath, file);
+
+        if (uploadError)
+          throw new Error("Error al subir imagen: " + uploadError.message);
+
+        // Obtener URL pública
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("invoices").getPublicUrl(filePath);
+
+        fileUrl = publicUrl;
+        setIsUploading(false);
+      }
+
+      // 2. CREAR FACTURA (Pasando la URL de la imagen)
+      const payload = { ...values, fileUrl };
+
+      const result = await createInvoice(payload);
+
+      if (result.error) {
+        setSubmitError(result.error);
+      } else {
+        setSubmitSuccess(true);
+        setTimeout(() => {
+          setOpen(false);
+          form.reset();
+          setFile(null);
+          setSubmitSuccess(false);
+        }, 1500);
+      }
+    } catch (err: unknown) {
+      setSubmitError((err as Error)?.message || "Error desconocido");
+    } finally {
+      setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -144,6 +189,8 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* 1. ENCABEZADO (Proveedor, Nro, Fecha, Moneda) */}
             <div className="grid grid-cols-12 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
+              
+
               {/* Proveedor (Col 1-4) */}
               <div className="col-span-12 md:col-span-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -299,6 +346,60 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                 />
               </div>
             </div>
+
+            <div className="p-4 bg-muted/30 rounded-lg border border-border border-dashed">
+                <div className="flex flex-col gap-3">
+                  <FormLabel>Comprobante Digital (Foto/PDF)</FormLabel>
+                  {!file ? (
+                    <div
+                      className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-muted-foreground/25 rounded-lg bg-background hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Click para subir imagen o PDF
+                      </p>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => {
+                          if (e.target.files?.[0]) setFile(e.target.files[0]);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-background border border-border rounded-md">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="h-10 w-10 bg-primary/10 rounded flex items-center justify-center shrink-0">
+                          <FileIcon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setFile(null);
+                          if (fileInputRef.current)
+                            fileInputRef.current.value = "";
+                        }}
+                      >
+                        <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
 
             {/* COTIZACIÓN (Solo si es ARS) */}
             {currency === "ARS" && (

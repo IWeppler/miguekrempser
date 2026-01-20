@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { InvoiceSchema } from "../schemas/invoice-schema";
 import { revalidatePath } from "next/cache";
 
-export async function createInvoice(data: InvoiceSchema) {
+type CreateInvoiceData = InvoiceSchema & { fileUrl?: string | null };
+
+export async function createInvoice(data: CreateInvoiceData) {
   const supabase = await createClient();
 
   try {
@@ -43,6 +45,7 @@ export async function createInvoice(data: InvoiceSchema) {
         amount_total: totalAmount,
         status: "pending",
         description: data.description,
+        image_url: data.fileUrl,
       })
       .select()
       .single();

@@ -114,15 +114,34 @@ export function LoginForm() {
           </div>
 
           <Button
-            className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-base shadow-lg shadow-primary/20 mt-2 transition-all"
             type="submit"
             disabled={isLoading}
+            className="
+    group
+    w-full h-11
+    bg-primary hover:bg-primary/90
+    text-primary-foreground
+    font-medium text-base
+    shadow-lg shadow-primary/20
+    mt-2
+
+    transition-colors duration-200 ease-out
+  "
           >
             {isLoading ? (
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             ) : (
-              <div className="flex items-center gap-2">
-                Ingresar al Sistema <ArrowRight className="h-4 w-4" />
+              <div className="flex items-center justify-center gap-2">
+                Ingresar al Sistema
+                <ArrowRight
+                  className="
+          h-4 w-4
+          transition-all duration-300 ease-out
+          group-hover:translate-x-1
+          group-hover:opacity-100
+          opacity-80
+        "
+                />
               </div>
             )}
           </Button>

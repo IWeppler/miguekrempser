@@ -75,11 +75,6 @@ export function DollarCard() {
             ${blue?.venta.toLocaleString("es-AR", { minimumFractionDigits: 0 })}
           </span>
         </div>
-
-        {/* Footer pequeño */}
-        <div className="text-[9px] text-right text-muted-foreground flex justify-end items-center gap-1 mt-1">
-          <RefreshCw className="h-2 w-2" /> Actualizado en tiempo real
-        </div>
       </CardContent>
     </Card>
   );
