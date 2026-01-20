@@ -118,7 +118,7 @@ export function Header() {
     async function fetchWeather() {
       try {
         const res = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&timezone=America%2FArgentina%2FBuenos_Aires`
+          `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&timezone=America%2FArgentina%2FBuenos_Aires`,
         );
         const data = await res.json();
         setWeather({
@@ -279,7 +279,7 @@ export function Header() {
                         "flex items-center gap-3 px-3 py-3 rounded-md text-sm font-medium transition-colors",
                         isActive
                           ? "bg-sidebar-accent text-sidebar-primary border border-sidebar-border"
-                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
                       )}
                     >
                       <item.icon
@@ -287,7 +287,7 @@ export function Header() {
                           "h-5 w-5",
                           isActive
                             ? "text-sidebar-primary"
-                            : "text-muted-foreground"
+                            : "text-muted-foreground",
                         )}
                       />
                       {item.name}
@@ -385,8 +385,8 @@ export function Header() {
                           notif.type === "stock"
                             ? "bg-destructive"
                             : notif.type === "invoice"
-                            ? "bg-orange-500"
-                            : "bg-primary"
+                              ? "bg-orange-500"
+                              : "bg-primary",
                         )}
                       />
                       <div className="space-y-1">

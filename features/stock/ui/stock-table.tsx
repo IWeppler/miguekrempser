@@ -29,16 +29,7 @@ import {
 } from "lucide-react";
 import { CreateProductDialog } from "./create-product-dialog";
 import { EditProductDialog } from "./edit-product-dialog";
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  current_stock: number;
-  min_stock_alert: number;
-  unit: string;
-  location?: string;
-}
+import { Product } from "../types";
 
 interface Props {
   initialData: Product[];

@@ -11,7 +11,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { invoiceSchema, type InvoiceSchema } from "../schemas/invoice-schema";
 import { createInvoice } from "@/features/finance/actions/create-invoice";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 // UI Imports
@@ -51,6 +50,7 @@ import {
   CheckCircle2,
   Coins,
 } from "lucide-react";
+import { useDolar } from "@/shared/hooks/use-dolar";
 
 interface Props {
   products: { id: string; name: string }[];
@@ -64,8 +64,9 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  const { oficial, loading: loadingRate } = useDolar();
+
   const form = useForm<InvoiceSchema>({
-    // Corrección de Tipado aplicada aquí:
     resolver: zodResolver(invoiceSchema) as unknown as Resolver<InvoiceSchema>,
     defaultValues: {
       currency: "USD",
@@ -78,13 +79,11 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
     },
   });
 
-  // Manejo de Array de Ítems (Tabla dinámica)
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "items",
   });
 
-  // Observar valores para cálculos en tiempo real
   const currency = useWatch({ control: form.control, name: "currency" });
   const items = useWatch({ control: form.control, name: "items" });
   const exchangeRate = useWatch({
@@ -92,7 +91,6 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
     name: "exchangeRate",
   });
 
-  // Calcular Total Estimado Sumando los renglones
   const totalAmount =
     items?.reduce((acc, item) => {
       return acc + Number(item.quantity || 0) * Number(item.unitPrice || 0);
@@ -102,8 +100,12 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
   useEffect(() => {
     if (currency === "USD") {
       form.setValue("exchangeRate", 1);
+    } else if (currency === "ARS") {
+      if (oficial?.venta) {
+        form.setValue("exchangeRate", oficial.venta);
+      }
     }
-  }, [currency, form]);
+  }, [currency, oficial, form]);
 
   const onSubmit = async (values: InvoiceSchema) => {
     setIsSubmitting(true);
@@ -303,8 +305,18 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               <div className="flex items-center gap-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md animate-in fade-in slide-in-from-top-1">
                 <Coins className="h-5 w-5 text-yellow-600" />
                 <div className="flex-1 text-sm text-yellow-700 dark:text-yellow-400">
-                  La factura está en Pesos. Ingresá el tipo de cambio para
-                  valorizar el stock en Dólares.
+                  La factura está en Pesos.
+                  {loadingRate ? (
+                    <span className="ml-1 inline-flex items-center">
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" /> Buscando
+                      cotización...
+                    </span>
+                  ) : (
+                    <span>
+                      {" "}
+                      Se aplicó la cotización oficial del día automáticamente.
+                    </span>
+                  )}
                 </div>
                 <FormField
                   control={form.control}
@@ -319,6 +331,8 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                           type="number"
                           step="0.01"
                           {...field}
+                          // Añadimos feedback visual si está cargando
+                          disabled={loadingRate}
                           className="bg-background font-mono font-bold text-right"
                           onChange={(e) =>
                             field.onChange(parseFloat(e.target.value))

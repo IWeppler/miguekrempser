@@ -25,6 +25,7 @@ import {
   X,
   Check,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { es } from "date-fns/locale";
 import {
@@ -35,12 +36,14 @@ import {
   startOfDay,
 } from "date-fns";
 
-// Tipo que coincide con la DB
-type Event = {
+type CalendarItem = {
   id: string;
   date: Date;
   title: string;
   time: string;
+  type: "event" | "invoice";
+  amount?: number;
+  currency?: string;
 };
 
 const TIME_OPTIONS = Array.from({ length: 96 }).map((_, i) => {
@@ -57,7 +60,7 @@ export function DashboardCalendar() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [view, setView] = useState<"calendar" | "day">("calendar");
-  const [events, setEvents] = useState<Event[]>([]);
+  const [items, setItems] = useState<CalendarItem[]>([]); // Lista unificada
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -70,40 +73,93 @@ export function DashboardCalendar() {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       const start = startOfMonth(currentMonth).toISOString();
       const end = endOfMonth(currentMonth).toISOString();
 
-      const { data, error } = await supabase
+      // 1. Traer Eventos Manuales
+      const eventsPromise = supabase
         .from("events")
         .select("*")
         .gte("date", start)
         .lte("date", end);
 
+      // 2. Traer Vencimientos de Facturas (Pendientes)
+      const invoicesPromise = supabase
+        .from("invoices")
+        .select(
+          "id, due_date, invoice_number, amount_total, currency, suppliers(name)",
+        )
+        .eq("status", "pending")
+        .gte("due_date", start)
+        .lte("due_date", end);
+
+      const [eventsRes, invoicesRes] = await Promise.all([
+        eventsPromise,
+        invoicesPromise,
+      ]);
+
       if (isMounted) {
-        if (error) {
-          console.error("Error fetching events:", error);
-        } else {
-          const mappedEvents = data.map((e) => ({
-            ...e,
-            date: new Date(e.date),
-          }));
-          setEvents(mappedEvents);
+        const combinedItems: CalendarItem[] = [];
+
+        // Mapear Eventos
+        if (eventsRes.data) {
+          eventsRes.data.forEach((e) => {
+            combinedItems.push({
+              id: e.id,
+              date: new Date(e.date),
+              title: e.title,
+
+              time: e.time,
+              type: "event",
+            });
+          });
         }
+
+        // Mapear Facturas
+        if (invoicesRes.data) {
+          invoicesRes.data.forEach((inv) => {
+            const dueDate = new Date(inv.due_date);
+
+            type SupplierData = { name: string } | { name: string }[] | null;
+
+            const sup = inv.suppliers as unknown as SupplierData;
+
+            let supplierName = "Proveedor";
+
+            if (Array.isArray(sup)) {
+              if (sup.length > 0) supplierName = sup[0].name;
+            } else if (sup) {
+              supplierName = sup.name;
+            }
+
+            combinedItems.push({
+              id: inv.id,
+              date: dueDate,
+              title: `Vence: ${supplierName}`,
+              time: "Vencimiento",
+              type: "invoice",
+              amount: inv.amount_total,
+              currency: inv.currency,
+            });
+          });
+        }
+
+        setItems(combinedItems);
         setIsLoading(false);
       }
     };
 
-    fetchEvents();
+    fetchData();
 
     return () => {
       isMounted = false;
     };
   }, [currentMonth, supabase]);
 
-  const selectedDayEvents = events.filter(
-    (e) => date && isSameDay(e.date, date)
+  const selectedDayItems = items.filter(
+    (item) => date && isSameDay(item.date, date),
   );
 
   const handleSelectDate = (selected: Date | undefined) => {
@@ -114,7 +170,7 @@ export function DashboardCalendar() {
     }
   };
 
-  // 2. GUARDAR EVENTO
+  // GUARDAR EVENTO MANUAL
   const handleSaveEvent = async () => {
     if (!date || !newNote.title.trim()) return;
     setIsSaving(true);
@@ -131,31 +187,30 @@ export function DashboardCalendar() {
       .select()
       .single();
 
-    if (error) {
-      console.error("Error saving event:", error);
-    } else {
-      const newEvent: Event = {
-        ...data,
+    if (!error && data) {
+      const newEvent: CalendarItem = {
+        id: data.id,
         date: new Date(data.date),
+        title: data.title,
+        time: data.time,
+        type: "event",
       };
-      setEvents((prev) => [...prev, newEvent]);
+      setItems((prev) => [...prev, newEvent]);
       setIsAdding(false);
       setNewNote({ title: "", time: "09:00" });
     }
     setIsSaving(false);
   };
 
-  // 3. BORRAR EVENTO
+  // BORRAR EVENTO (Solo manuales)
   const handleDeleteEvent = async (id: string) => {
-    // Optimistic update
-    const previousEvents = events;
-    setEvents(events.filter((e) => e.id !== id));
+    const previousItems = items;
+    setItems(items.filter((e) => e.id !== id));
 
     const { error } = await supabase.from("events").delete().eq("id", id);
 
     if (error) {
-      console.error("Error deleting event:", error);
-      setEvents(previousEvents); // Rollback
+      setItems(previousItems);
     }
   };
 
@@ -204,7 +259,7 @@ export function DashboardCalendar() {
               variant="secondary"
               className="text-[10px] h-5 px-1.5 font-normal bg-muted text-muted-foreground"
             >
-              {selectedDayEvents.length} eventos
+              {selectedDayItems.length}
             </Badge>
           )}
         </div>
@@ -240,11 +295,22 @@ export function DashboardCalendar() {
                 day_hidden: "invisible",
               }}
               modifiers={{
-                hasEvent: (day) => events.some((e) => isSameDay(e.date, day)),
+                hasEvent: (day) =>
+                  items.some(
+                    (e) => e.type === "event" && isSameDay(e.date, day),
+                  ),
+                hasInvoice: (day) =>
+                  items.some(
+                    (e) => e.type === "invoice" && isSameDay(e.date, day),
+                  ),
               }}
               modifiersClassNames={{
+                // Puntito azul para eventos
                 hasEvent:
                   "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:bg-primary after:rounded-full",
+                // Puntito rojo para facturas (sobrescribe o convive)
+                hasInvoice:
+                  "relative before:absolute before:top-1 before:right-1 before:w-1.5 before:h-1.5 before:bg-destructive before:rounded-full",
               }}
             />
           </div>
@@ -254,30 +320,63 @@ export function DashboardCalendar() {
         {view === "day" && (
           <div className="flex-1 flex flex-col w-full bg-card animate-in slide-in-from-right-4 duration-300 relative">
             <ScrollArea className="flex-1 p-4 pb-0">
-              {selectedDayEvents.length > 0 ? (
+              {selectedDayItems.length > 0 ? (
                 <div className="space-y-2 pb-4">
-                  {selectedDayEvents.map((event) => (
+                  {selectedDayItems.map((item) => (
                     <div
-                      key={event.id}
-                      className="group flex items-center gap-3 p-2 rounded-md border border-border hover:border-primary/50 hover:bg-primary/5 transition-all bg-card shadow-sm"
+                      key={item.id}
+                      className={`group flex items-center gap-3 p-2 rounded-md border transition-all bg-card shadow-sm ${
+                        item.type === "invoice"
+                          ? "border-destructive/30 bg-destructive/5 hover:border-destructive/50"
+                          : "border-border hover:border-primary/50 hover:bg-primary/5"
+                      }`}
                     >
-                      <span className="text-[10px] font-bold text-muted-foreground w-10 text-right shrink-0">
-                        {event.time}
+                      <span
+                        className={`text-[10px] font-bold w-12 text-right shrink-0 ${
+                          item.type === "invoice"
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.type === "invoice" ? "VENCE" : item.time}
                       </span>
-                      <div className="h-8 w-1 rounded-full shrink-0 bg-primary" />
+
+                      <div
+                        className={`h-8 w-1 rounded-full shrink-0 ${
+                          item.type === "invoice"
+                            ? "bg-destructive"
+                            : "bg-primary"
+                        }`}
+                      />
+
                       <div className="flex-1 flex flex-col justify-center min-w-0">
                         <p className="text-xs font-semibold text-foreground leading-tight mb-0.5 truncate">
-                          {event.title}
+                          {item.title}
                         </p>
+                        {item.type === "invoice" && (
+                          <p className="text-[10px] text-muted-foreground font-mono">
+                            {item.currency} {item.amount?.toLocaleString()}
+                          </p>
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all shrink-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+
+                      {/* Solo permitimos borrar eventos manuales, no facturas desde acá */}
+                      {item.type === "event" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteEvent(item.id)}
+                          className="h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all shrink-0"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+
+                      {item.type === "invoice" && (
+                        <div className="h-6 w-6 flex items-center justify-center text-destructive">
+                          <AlertCircle className="h-3 w-3" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -287,13 +386,13 @@ export function DashboardCalendar() {
                     <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center">
                       <Clock className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <p className="text-xs font-medium">Sin agenda para hoy.</p>
+                    <p className="text-xs font-medium">Nada para hoy.</p>
                   </div>
                 )
               )}
             </ScrollArea>
 
-            {/* FORMULARIO FLOTANTE */}
+            {/* FORMULARIO FLOTANTE (Solo para eventos manuales) */}
             {isAdding ? (
               <div className="p-4 bg-muted/30 border-t border-border animate-in slide-in-from-bottom-2">
                 <div className="space-y-3">
@@ -312,7 +411,6 @@ export function DashboardCalendar() {
                   </div>
 
                   <div className="flex gap-2">
-                    {/* Input Hora */}
                     <div className="w-24 shrink-0">
                       <Label className="text-[10px] text-muted-foreground uppercase mb-1 block">
                         Hora
@@ -326,12 +424,7 @@ export function DashboardCalendar() {
                         <SelectTrigger className="h-8 text-xs bg-background w-full">
                           <SelectValue placeholder="Hora" />
                         </SelectTrigger>
-                        <SelectContent
-                          className="h-48"
-                          position="popper"
-                          side="top"
-                          align="start"
-                        >
+                        <SelectContent className="h-48">
                           {TIME_OPTIONS.map((time) => (
                             <SelectItem
                               key={time}
@@ -345,7 +438,6 @@ export function DashboardCalendar() {
                       </Select>
                     </div>
 
-                    {/* Input Detalle */}
                     <div className="flex-1">
                       <Label className="text-[10px] text-muted-foreground uppercase mb-1 block">
                         Detalle

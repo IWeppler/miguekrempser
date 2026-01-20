@@ -18,16 +18,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
 } from "lucide-react";
-
-interface Movement {
-  id: string;
-  created_at: string;
-  type: "IN" | "OUT";
-  quantity: number;
-  technician_name: string | null;
-  description: string | null; // Changed from reason to match DB update
-  products: { name: string } | null;
-}
+import { Movement } from "../types";
 
 interface Props {
   movement: Movement | null;

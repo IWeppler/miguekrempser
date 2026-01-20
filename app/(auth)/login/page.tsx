@@ -7,12 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      {/* Fondo decorativo opcional o simple */}
-      <div className="w-full max-w-sm space-y-4">
-        <LoginForm />
-      </div>
-    </div>
-  );
+  return <LoginForm />;
 }

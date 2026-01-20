@@ -25,7 +25,7 @@ import {
   ArrowDownLeft,
   CheckCircle,
 } from "lucide-react";
-import { Invoice } from "./invoices-table";
+import { Invoice } from "../types";
 
 interface Props {
   invoice: Invoice | null;
@@ -79,7 +79,6 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
     setIsPaying(false);
 
     if (result.success) {
-      // Close dialog and refresh data to show updated status
       onOpenChange(false);
       router.refresh();
     } else {
@@ -148,7 +147,7 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
                 <DollarSign className="h-4 w-4" /> Monto Total
               </div>
               <p className="font-medium text-lg">
-                {invoice.currency} {invoice.amount?.toLocaleString()}
+                {invoice.currency} {invoice.amount_total?.toLocaleString()}
               </p>
             </div>
           </div>

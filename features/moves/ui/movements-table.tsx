@@ -20,18 +20,7 @@ import {
   FileText,
 } from "lucide-react";
 import { MovementActions } from "@/features/moves/ui/movement-actions";
-
-// Tipos
-export interface Movement {
-  id: string;
-  created_at: string;
-  type: "IN" | "OUT";
-  quantity: number;
-  technician_name: string | null;
-  product_id: string;
-  description: string | null;
-  products: { name: string } | null;
-}
+import { Movement } from "../types";
 
 type SortField = "created_at" | "type" | "product" | "quantity" | "technician";
 type SortDirection = "asc" | "desc";

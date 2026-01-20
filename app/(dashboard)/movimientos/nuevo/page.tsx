@@ -4,7 +4,6 @@ import { NewRemitoForm } from "@/features/moves/ui/new-remito-form";
 export default async function NuevoRemitoPage() {
   const supabase = await createClient();
 
-  // 1. Obtener Usuario Actual (Server Side)
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -12,13 +11,11 @@ export default async function NuevoRemitoPage() {
   const currentUserEmail = user?.email;
   const currentUserName = user?.user_metadata?.full_name;
 
-  // 2. Obtener Perfiles Públicos (Ingenieros)
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, full_name, email")
     .order("full_name");
 
-  // 3. Obtener Productos
   const { data: products } = await supabase
     .from("products")
     .select("id, name")

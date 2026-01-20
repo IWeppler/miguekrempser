@@ -1,22 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { InvoicesTable } from "@/features/finance/ui/invoices-table";
 import { startOfMonth, endOfMonth } from "date-fns";
-import { FinanceStats } from "@/features/finance/ui/finance-stats"; // Importamos el nuevo componente
+import { FinanceStats } from "@/features/finance/ui/finance-stats";
+import { Invoice } from "@/features/finance/types";
 
-// Interface InvoiceData... (la misma que tenías antes)
-interface InvoiceData {
-  id: string;
-  amount: number | null;
-  amount_total?: number | null;
-  currency: string;
-  status: string;
-  due_date: string;
-  invoice_number: string;
-  suppliers: { name: string } | null;
-}
-
-const getAmount = (inv: InvoiceData) =>
-  Number(inv.amount_total ?? inv.amount ?? 0);
+const getAmount = (inv: Invoice) =>
+  Number(inv.amount_total ?? inv.amount_total ?? 0);
 
 export default async function FinanzasPage() {
   const supabase = await createClient();
@@ -32,7 +21,7 @@ export default async function FinanzasPage() {
   ]);
 
   const products = productsRes.data || [];
-  const rawInvoices = (invoicesRes.data as InvoiceData[]) || [];
+  const rawInvoices = (invoicesRes.data as Invoice[]) || [];
   const suppliers = suppliersRes.data || [];
 
   // 2. Preparar datos limpios para la Tabla
@@ -42,7 +31,7 @@ export default async function FinanzasPage() {
   }));
 
   // Helper para sumar
-  const sumByCurrency = (invoiceList: InvoiceData[]) => {
+  const sumByCurrency = (invoiceList: Invoice[]) => {
     return invoiceList.reduce(
       (acc, inv) => {
         const amount = getAmount(inv);
@@ -82,7 +71,7 @@ export default async function FinanzasPage() {
   const paidTotal = sumByCurrency(paidInvoices);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* ENCABEZADO */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">

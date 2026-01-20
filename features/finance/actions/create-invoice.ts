@@ -1,85 +1,125 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { InvoiceSchema } from "../schemas/invoice-schema";
 import { revalidatePath } from "next/cache";
-import { invoiceSchema, type InvoiceSchema } from "../schemas/invoice-schema";
 
 export async function createInvoice(data: InvoiceSchema) {
   const supabase = await createClient();
 
-  // 1. Validar
-  const result = invoiceSchema.safeParse(data);
-  if (!result.success) {
-    return { error: "Datos inválidos: " + result.error.message };
-  }
-
-  // Obtener usuario actual
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const technicianName =
-    user?.user_metadata?.full_name || user?.email || "Sistema";
-
-  const { items, newSupplierName, ...invoiceHeader } = result.data;
-
   try {
-    // 2. Manejo de Proveedor
-    let supplierId = invoiceHeader.supplierId;
+    // 1. Validar o Crear Proveedor
+    let supplierId = data.supplierId;
 
-    if (!supplierId && newSupplierName) {
-      const { data: newSup, error: supError } = await supabase
+    if (!supplierId && data.newSupplierName) {
+      const { data: newSupplier, error: supplierError } = await supabase
         .from("suppliers")
-        .insert({ name: newSupplierName })
-        .select("id")
+        .insert({ name: data.newSupplierName })
+        .select()
         .single();
 
-      if (supError)
-        throw new Error("Error creando proveedor: " + supError.message);
-      supplierId = newSup.id;
+      if (supplierError) throw new Error("Error al crear proveedor");
+      supplierId = newSupplier.id;
     }
 
-    if (!supplierId) throw new Error("Debe seleccionar un proveedor válido.");
+    if (!supplierId) throw new Error("Falta el proveedor");
 
-    // Calcular el monto total sumando los ítems (para validación)
-    const calculatedTotal = items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
+    // 2. Calcular monto total (para guardar en la factura)
+    const totalAmount = data.items.reduce(
+      (acc, item) => acc + item.quantity * item.unitPrice,
       0,
     );
 
-    // 3. LLAMADA A LA NUEVA RPC V2
-    const itemsJson = items.map((item) => ({
-      product_id: item.productId || null,
-      description: item.description,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-    }));
+    // 3. Crear la Factura
+    const { data: invoice, error: invoiceError } = await supabase
+      .from("invoices")
+      .insert({
+        invoice_number: data.invoiceNumber,
+        supplier_id: supplierId,
+        date: new Date().toISOString(),
+        due_date: data.dueDate.toISOString(),
+        currency: data.currency,
+        exchange_rate: data.exchangeRate,
+        amount_total: totalAmount,
+        status: "pending",
+        description: data.description,
+      })
+      .select()
+      .single();
 
-    const { error: rpcError } = await supabase.rpc(
-      "create_invoice_transaction_v2",
-      {
-        p_supplier_id: supplierId,
-        p_invoice_number: invoiceHeader.invoiceNumber,
-        p_description: invoiceHeader.description || "",
-        p_amount_total: calculatedTotal,
-        p_exchange_rate: invoiceHeader.exchangeRate,
-        p_currency: invoiceHeader.currency,
-        p_due_date: invoiceHeader.dueDate.toISOString(),
-        p_items: itemsJson,
-        p_technician_name: technicianName,
-      },
-    );
+    if (invoiceError)
+      throw new Error("Error al crear la factura: " + invoiceError.message);
 
-    if (rpcError) throw new Error(rpcError.message);
+    // 4. Procesar Ítems: Insertar detalle Y Actualizar Stock/Costo (PPP)
+    for (const item of data.items) {
+      // A. Guardar ítem de factura
+      const { error: itemError } = await supabase.from("invoice_items").insert({
+        invoice_id: invoice.id,
+        product_id: item.productId,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+      });
 
-    // 4. Revalidar
+      if (itemError) throw new Error("Error al guardar ítem de factura");
+
+      // B. ACTUALIZAR STOCK Y COSTO (Solo si está vinculado a un producto)
+      if (item.productId) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("current_stock, average_cost")
+          .eq("id", item.productId)
+          .single();
+
+        if (product) {
+          const currentStock = Number(product.current_stock || 0);
+          const currentCostUSD = Number(product.average_cost || 0);
+
+          // CÁLCULO DE COSTO DE ESTA COMPRA EN USD
+          const incomingCostUSD =
+            data.currency === "ARS"
+              ? item.unitPrice / data.exchangeRate
+              : item.unitPrice;
+
+          const incomingQty = item.quantity;
+
+          // CÁLCULO PPP (Precio Promedio Ponderado)
+          const totalValueOld = currentStock * currentCostUSD;
+          const totalValueNew = incomingQty * incomingCostUSD;
+          const newTotalStock = currentStock + incomingQty;
+
+          // Evitar división por cero
+          const newAverageCost =
+            newTotalStock > 0
+              ? (totalValueOld + totalValueNew) / newTotalStock
+              : incomingCostUSD;
+
+          // Actualizar producto en DB
+          await supabase
+            .from("products")
+            .update({
+              current_stock: newTotalStock,
+              average_cost: newAverageCost,
+              currency: "USD",
+            })
+            .eq("id", item.productId);
+
+          await supabase.from("movements").insert({
+            type: "IN",
+            product_id: item.productId,
+            quantity: incomingQty,
+            description: `Compra Factura ${data.invoiceNumber}`,
+            date: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
     revalidatePath("/finanzas");
     revalidatePath("/stock");
-    revalidatePath("/movimientos");
-    revalidatePath("/");
-
-    return { success: true };
+    return { success: true, invoice };
   } catch (error: unknown) {
-    console.error("Error creating invoice v2:", error);
+    console.error("Error creating invoice:", error);
     let msg = "Error desconocido";
     if (error instanceof Error) msg = error.message;
     return { error: msg };

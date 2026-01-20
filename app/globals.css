@@ -74,7 +74,7 @@
   --popover-foreground: oklch(0.141 0.005 285.8);
 
   /* PRIMARY: Verde Agro (Fuerte y profesional) */
-  --primary: oklch(0.48 0.16 145);
+  --primary: oklab(48.369% -0.10376 0.03959);
   --primary-foreground: oklch(0.985 0 0);
 
   /* SECONDARY: Para botones secundarios o fondos suaves */
@@ -96,20 +96,20 @@
   /* BORDES: Sutiles pero visibles */
   --border: oklch(0.92 0.004 286);
   --input: oklch(0.92 0.004 286);
-  --ring: oklch(0.48 0.16 145); /* Mismo que primary */
+  --ring: oklab(48.369% -0.10376 0.03959);
 
   /* SIDEBAR: En light mode suele ser blanco o gris muy claro */
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.8);
-  --sidebar-primary: oklch(0.48 0.16 145);
+  --sidebar-primary: oklab(48.369% -0.10376 0.03959);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.96 0.003 247.8);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.8);
   --sidebar-border: oklch(0.92 0.004 286);
-  --sidebar-ring: oklch(0.48 0.16 145);
+  --sidebar-ring: oklab(48.369% -0.10376 0.03959);
 
   /* CHARTS: Paleta de datos */
-  --chart-1: oklch(0.48 0.16 145); /* Verde */
+  --chart-1: oklab(48.369% -0.10376 0.03959); /* Verde */
   --chart-2: oklch(0.35 0.1 220); /* Azul */
   --chart-3: oklch(0.4 0.12 30); /* Naranja */
   --chart-4: oklch(0.55 0.15 90); /* Amarillo */
@@ -130,7 +130,7 @@
   --popover-foreground: oklch(0.985 0.002 247.8);
 
   /* PRIMARY: Verde un poco más luminoso para resaltar en fondo oscuro */
-  --primary: oklch(0.6 0.16 145);
+  --primary: oklab(81.105% -0.20254 0.13336);
   --primary-foreground: oklch(0.11 0.015 250);
 
   /* SECONDARY */
@@ -152,20 +152,20 @@
   /* BORDES */
   --border: oklch(0.2 0.015 252);
   --input: oklch(0.2 0.015 252);
-  --ring: oklch(0.6 0.16 145);
+  --ring: oklab(81.105% -0.20254 0.13336);
 
   /* SIDEBAR: Igual al card en dark mode */
   --sidebar: oklch(0.14 0.015 252);
   --sidebar-foreground: oklch(0.985 0.002 247.8);
-  --sidebar-primary: oklch(0.6 0.16 145);
+  --sidebar-primary: oklab(81.105% -0.20254 0.13336);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.2 0.015 252);
   --sidebar-accent-foreground: oklch(0.985 0.002 247.8);
   --sidebar-border: oklch(0.2 0.015 252);
-  --sidebar-ring: oklch(0.6 0.16 145);
+  --sidebar-ring: oklab(81.105% -0.20254 0.13336);
 
   /* CHARTS: Ajustados para dark mode (más pastel/luminosos) */
-  --chart-1: oklch(0.6 0.16 145);
+  --chart-1: oklab(81.105% -0.20254 0.13336);
   --chart-2: oklch(0.5 0.1 220);
   --chart-3: oklch(0.55 0.12 30);
   --chart-4: oklch(0.7 0.15 90);

@@ -41,12 +41,9 @@ export function ExpenseDonut() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch expenses (assuming a 'movements' table with type='OUT' or an 'expenses' table)
-        // Adjust the table name and query logic to match your DB structure.
-        // Example: grouping movements by category.
         const { data: movements, error } = await supabase
           .from("movements")
-          .select("quantity, products(category)") // Assuming relation to products to get category
+          .select("quantity, products(category)")
           .eq("type", "OUT");
 
         if (error) throw error;

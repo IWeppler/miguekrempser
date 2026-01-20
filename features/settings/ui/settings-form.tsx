@@ -20,25 +20,47 @@ import {
   Palette,
   Loader2,
 } from "lucide-react";
-// Import from your separate components file
 import {
   SectionHeader,
   SectionBox,
   Field,
   ToggleRow,
 } from "./settings-components";
+import { updateProfile } from "../actions/update-profile";
 
-export function SettingsForm() {
+interface Props {
+  user: {
+    id: string;
+    email?: string;
+  };
+  profile: {
+    full_name: string | null;
+    role?: string;
+  };
+}
+
+export function SettingsForm({ user, profile }: Props) {
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
+
+  const [fullName, setFullName] = useState(profile.full_name || "");
   const [isLoading, setIsLoading] = useState(false);
+
   const [stockAlerts, setStockAlerts] = useState(true);
   const [invoiceAlerts, setInvoiceAlerts] = useState(true);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsLoading(true);
-    console.log("Guardando:", { theme, stockAlerts, invoiceAlerts });
-    setTimeout(() => setIsLoading(false), 1500);
+
+    const result = await updateProfile(user.id, fullName);
+
+    setIsLoading(false);
+
+    if (result.success) {
+      alert("Perfil actualizado correctamente");
+    } else {
+      alert("Error al actualizar: " + result.error);
+    }
   };
 
   const isDark = mounted && theme === "dark";
@@ -58,8 +80,10 @@ export function SettingsForm() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <Field label="Nombre Completo">
                 <Input
-                  defaultValue="Ignacio"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   className="bg-background border-input"
+                  placeholder="Tu nombre..."
                 />
               </Field>
 
@@ -67,19 +91,18 @@ export function SettingsForm() {
                 <div className="relative">
                   <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    defaultValue="ignacio@agrogestion.com"
+                    value={user.email || ""}
                     readOnly
-                    // 'bg-muted' gives it a readonly look in both modes
-                    className="bg-muted pl-9 text-muted-foreground border-input"
+                    className="bg-muted pl-9 text-muted-foreground border-input cursor-not-allowed"
                   />
                 </div>
               </Field>
 
               <Field label="Rol / Cargo" className="md:col-span-2">
                 <Input
-                  defaultValue="Productor / Administrador"
+                  value={profile.role || "Productor / Administrador"}
                   readOnly
-                  className="bg-muted text-muted-foreground border-input"
+                  className="bg-muted text-muted-foreground border-input cursor-not-allowed"
                 />
               </Field>
             </div>
@@ -139,6 +162,7 @@ export function SettingsForm() {
 
         <CardContent className="p-6 pt-0">
           <SectionBox>
+            {/* Nota: La gestión de cambio de pass en Supabase requiere otro flow de Auth Api */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <Field label="Contraseña Actual" className="md:col-span-2">
                 <div className="relative">
@@ -147,27 +171,14 @@ export function SettingsForm() {
                     type="password"
                     placeholder="••••••••"
                     className="bg-background pl-9 border-input"
+                    disabled
                   />
                 </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  * Para cambiar la contraseña, utiliza el flujo de recuperación
+                  de cuenta por email.
+                </p>
               </Field>
-
-              <Field label="Nueva Contraseña">
-                <Input type="password" className="bg-background border-input" />
-              </Field>
-
-              <Field label="Confirmar Contraseña">
-                <Input type="password" className="bg-background border-input" />
-              </Field>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-8 border-border text-foreground hover:bg-muted"
-              >
-                Actualizar solo contraseña
-              </Button>
             </div>
           </SectionBox>
         </CardContent>
@@ -207,19 +218,20 @@ export function SettingsForm() {
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card px-6 py-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            Última modificación: hace 2 días
+            {/* Podrías poner la fecha real de update si la traes de DB */}
+            Configuración de cuenta
           </p>
           <div className="flex gap-4">
             <Button
               variant="ghost"
               className="text-muted-foreground hover:text-foreground"
+              onClick={() => setFullName(profile.full_name || "")} // Reset
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSave}
               disabled={isLoading}
-              // Primary color logic is handled by globals.css
               className="min-w-[140px]"
             >
               {isLoading ? (

@@ -24,19 +24,7 @@ import { CreateInvoiceDialog } from "./create-invoice-dialog";
 import { InvoiceDetailDialog } from "./invoice-detail-dialog";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-
-// --- TIPOS ---
-export interface Invoice {
-  id: string;
-  invoice_number: string;
-  amount: number;
-  currency: string;
-  status: string;
-  due_date: string;
-  suppliers: {
-    name: string;
-  } | null;
-}
+import { Invoice } from "../types";
 
 type SortField =
   | "invoice_number"
@@ -110,7 +98,7 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
       case "status":
         return (a.status || "").localeCompare(b.status || "") * multiplier;
       case "amount":
-        return ((a.amount || 0) - (b.amount || 0)) * multiplier;
+        return ((a.amount_total || 0) - (b.amount_total || 0)) * multiplier;
       default:
         return 0;
     }
@@ -273,7 +261,7 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                   </TableCell>
                   <TableCell className="text-right font-bold text-foreground">
                     {inv.currency === "USD" ? "USD" : "$"}{" "}
-                    {inv.amount?.toLocaleString()}
+                    {inv.amount_total?.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

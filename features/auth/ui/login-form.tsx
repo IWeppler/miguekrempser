@@ -16,15 +16,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shared/ui/form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
-import { Loader2, Truck, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/shared/ui/alert";
+import { Loader2, AlertCircle, Sprout, ArrowRight } from "lucide-react";
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,40 +48,43 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-sm shadow-lg border-green-100">
-      <CardHeader className="space-y-1 text-center">
-        <div className="flex justify-center mb-2">
-          <div className="bg-green-100 p-3 rounded-full">
-            <Truck className="h-6 w-6 text-green-700" />
-          </div>
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* HEADER LIMPIO (Sin CardHeader) */}
+      <div className="space-y-2">
+        <div className="h-12 w-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4">
+          <Sprout className="h-6 w-6 text-primary" />
         </div>
-        <CardTitle className="text-2xl font-bold text-green-900">
-          AgroGestión
-        </CardTitle>
-        <CardDescription>
-          Ingresá tus credenciales para acceder al sistema
-        </CardDescription>
-      </CardHeader>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Bienvenido de nuevo
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Ingresa tus credenciales para acceder al panel.
+        </p>
+      </div>
 
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error de Ingreso</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+      {/* FORMULARIO */}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {error && (
+            <Alert variant="destructive" className="py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
+          <div className="space-y-4">
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Correo Electrónico</FormLabel>
                   <FormControl>
-                    <Input placeholder="admin@campo.com" {...field} />
+                    <Input
+                      placeholder="nombre@campo.com"
+                      {...field}
+                      className="h-11 bg-muted/30"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -100,26 +96,38 @@ export function LoginForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contraseña</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Contraseña</FormLabel>
+                  </div>
                   <FormControl>
-                    <Input type="password" {...field} />
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      {...field}
+                      className="h-11 bg-muted/30"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </div>
 
-            <Button
-              className="w-full bg-green-700 hover:bg-green-800 mt-4"
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Ingresar
-            </Button>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          <Button
+            className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-base shadow-lg shadow-primary/20 mt-2 transition-all"
+            type="submit"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <div className="flex items-center gap-2">
+                Ingresar al Sistema <ArrowRight className="h-4 w-4" />
+              </div>
+            )}
+          </Button>
+        </form>
+      </Form>
+    </div>
   );
 }

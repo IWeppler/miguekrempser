@@ -5,7 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Switch } from "@/shared/ui/switch";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { TrendingDown, Calendar, CheckCircle2, History } from "lucide-react";
+import {
+  TrendingDown,
+  Calendar,
+  CheckCircle2,
+  History,
+  RefreshCcw,
+} from "lucide-react";
+import { useDolar } from "@/shared/hooks/use-dolar";
 
 interface CurrencyTotals {
   ARS: number;
@@ -19,7 +26,7 @@ interface Props {
   paidTotal: CurrencyTotals;
 }
 
-// 1. Helper formateador extraído (para que no se re-cree en cada render)
+// 1. Helper formateador
 const formatMoney = (amount: number, currency: "USD" | "ARS") => {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
@@ -28,7 +35,7 @@ const formatMoney = (amount: number, currency: "USD" | "ARS") => {
   }).format(amount);
 };
 
-// 2. Componente DisplayValue EXTRAÍDO (ahora recibe props)
+// 2. Componente DisplayValue
 const DisplayValue = ({
   values,
   isConsolidated,
@@ -38,9 +45,7 @@ const DisplayValue = ({
   isConsolidated: boolean;
   exchangeRate: number;
 }) => {
-  // CASO 1: VISTA CONSOLIDADA (TODO A USD)
   if (isConsolidated) {
-    // Evitamos división por cero
     const rate = exchangeRate || 1;
     const totalInUsd = values.USD + values.ARS / rate;
 
@@ -53,7 +58,6 @@ const DisplayValue = ({
     );
   }
 
-  // CASO 2: VISTA DESGLOSADA (REAL)
   const showARS = values.ARS !== 0;
   const showUSD = values.USD !== 0;
 
@@ -82,10 +86,15 @@ export function FinanceStats({
   overdueDebt,
   paidTotal,
 }: Props) {
-  // Estado para el switch: false = Desglosado, true = Consolidado en USD
   const [isConsolidated, setIsConsolidated] = useState(false);
-  // Estado para la cotización de referencia (Default 1150 o lo que prefieras)
-  const [exchangeRate, setExchangeRate] = useState(1150);
+
+  const [manualExchangeRate, setManualExchangeRate] = useState<number | null>(
+    null,
+  );
+
+  const { oficial, loading: loadingRate } = useDolar();
+
+  const exchangeRate = manualExchangeRate ?? oficial?.venta ?? 1150;
 
   return (
     <div className="space-y-4">
@@ -108,9 +117,10 @@ export function FinanceStats({
           <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-5">
             <Label
               htmlFor="rate"
-              className="text-xs text-muted-foreground whitespace-nowrap"
+              className="text-xs text-muted-foreground whitespace-nowrap flex items-center gap-1"
             >
-              Dólar Ref:
+              Dólar Ref
+              {loadingRate && <RefreshCcw className="h-3 w-3 animate-spin" />} :
             </Label>
             <div className="relative w-24">
               <span className="absolute left-2 top-1.5 text-xs text-muted-foreground">
@@ -120,7 +130,7 @@ export function FinanceStats({
                 id="rate"
                 type="number"
                 value={exchangeRate}
-                onChange={(e) => setExchangeRate(Number(e.target.value))}
+                onChange={(e) => setManualExchangeRate(Number(e.target.value))}
                 className="h-8 pl-5 text-xs bg-background"
               />
             </div>

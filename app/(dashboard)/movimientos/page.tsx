@@ -6,7 +6,8 @@ import { Button } from "@/shared/ui/button";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CreateAdjustmentDialog } from "@/features/moves/ui/create-adjustment-dialog";
 // Importamos el nuevo componente de tabla
-import { MovementsTable, Movement } from "@/features/moves/ui/movements-table";
+import { MovementsTable } from "@/features/moves/ui/movements-table";
+import { Movement } from "@/features/moves/types";
 
 type SearchParams = Promise<{
   query?: string;
@@ -55,8 +56,6 @@ export default async function HistorialPage({
 
   const { data: movementsData, count } = await dbQuery;
 
-  // Casteo seguro de datos para que coincida con la interfaz Movement
-  // (Asegúrate de que tu base de datos devuelve 'type' como "IN" | "OUT")
   const movements = (movementsData as unknown as Movement[]) || [];
 
   const totalPages = Math.ceil((count || 0) / ITEMS_PER_PAGE);
@@ -93,7 +92,6 @@ export default async function HistorialPage({
       <div className="space-y-4">
         <MovementsFilters />
 
-        {/* Pasamos los datos al componente Cliente para ordenamiento interactivo */}
         <MovementsTable initialMovements={movements} />
 
         {/* FOOTER PAGINACIÓN DEL SERVIDOR */}
