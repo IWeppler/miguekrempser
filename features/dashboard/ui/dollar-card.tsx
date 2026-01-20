@@ -1,9 +1,9 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
-import { DollarSign, RefreshCw, TrendingUp } from "lucide-react";
+import { DollarSign, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { useDolar } from "@/shared/hooks/use-dolar"; // <--- Importamos el hook
+import { useDolar } from "@/shared/hooks/use-dolar";
 
 export function DollarCard() {
   const { oficial, blue, loading, error } = useDolar();
@@ -35,17 +35,12 @@ export function DollarCard() {
 
   return (
     <Card className="shadow-sm border-border bg-card relative overflow-hidden h-full group">
-      {/* Decoración de fondo sutil */}
-      <div className="absolute -right-4 -top-4 text-green-500/5 group-hover:text-green-500/10 transition-colors">
-        <DollarSign className="h-32 w-32" />
-      </div>
-
       <CardHeader className="pb-2 flex flex-row items-center justify-between relative z-10">
         <CardTitle className="text-muted-foreground text-sm font-medium">
           Cotización Hoy
         </CardTitle>
         <div className="bg-green-100 dark:bg-green-900/30 p-1.5 rounded-full">
-          <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
         </div>
       </CardHeader>
 

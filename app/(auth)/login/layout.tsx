@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-white grid lg:grid-cols-2 p-3 lg:p-4 overflow-hidden">
+    <div className="min-h-screen w-full grid lg:grid-cols-2 p-3 lg:p-4 overflow-hidden">
       {/* --- COLUMNA IZQUIERDA: IMAGEN FLOTANTE --- */}
       <div className="hidden lg:block relative h-full w-full rounded-[40px] overflow-hidden bg-slate-900">
         <Image

@@ -7,6 +7,7 @@ import {
   remitoSchema,
   type RemitoSchema,
 } from "@/features/moves/schemas/remito-schema";
+// IMPORTANTE: Usamos la Server Action, no lógica inline
 import { createRemito } from "@/features/moves/actions/create-remito";
 import { useRouter } from "next/navigation";
 import { PDFDownloadLink } from "@react-pdf/renderer";
@@ -39,7 +40,11 @@ import {
   Truck,
   FileText,
   MapPin,
+  ArrowLeft,
+  Download,
+  AlertCircle,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 
 interface Props {
   products: { id: string; name: string }[];
@@ -52,6 +57,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState<RemitoSchema | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm<RemitoSchema>({
     resolver: zodResolver(remitoSchema) as unknown as Resolver<RemitoSchema>,
@@ -61,7 +67,6 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
       destination: "",
       driver: currentUserName || "",
       plate: "",
-      // ACTUALIZADO: Agregamos unit por defecto
       items: [{ productId: "", quantity: 0, batch: "", unit: "Litros" }],
       observations: "",
     },
@@ -74,16 +79,20 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
 
   const onSubmit = async (values: RemitoSchema) => {
     setIsSubmitting(true);
+    setServerError(null);
+
+    // Llamada a la Server Action (Descuenta stock en backend)
     const result = await createRemito(values);
     setIsSubmitting(false);
 
     if (result.success) {
       setSuccessData(values);
     } else {
-      alert("Error al guardar: " + result.error);
+      setServerError(result.error || "Ocurrió un error inesperado.");
     }
   };
 
+  // --- PANTALLA DE ÉXITO ---
   if (successData) {
     return (
       <Card className="max-w-md mx-auto mt-10 text-center border-green-200 bg-green-50 animate-in fade-in zoom-in duration-300">
@@ -94,7 +103,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
           <h2 className="text-xl font-bold text-green-800">
             ¡Remito Generado!
           </h2>
-          <p className="text-green-700">
+          <p className="text-green-700 text-sm">
             El stock ha sido descontado correctamente.
           </p>
 
@@ -107,21 +116,30 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                   createdAt={new Date().toISOString()}
                 />
               }
-              fileName={`REMITO-${successData.orderNumber}.pdf`}
+              fileName={`REMITO-${successData.orderNumber || "borrador"}.pdf`}
               className="w-full"
             >
               {({ loading }) => (
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white gap-2 shadow-md transition-all">
-                  <Printer className="h-4 w-4" />
-                  {loading
-                    ? "Generando PDF..."
-                    : "Imprimir Comprobante (Policía)"}
+                <Button
+                  disabled={loading}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white gap-2 shadow-md transition-all h-12"
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {loading ? "Generando..." : "Descargar PDF (Policía)"}
                 </Button>
               )}
             </PDFDownloadLink>
 
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Nuevo Movimiento
+            <Button
+              variant="outline"
+              onClick={() => router.push("/movimientos")}
+              className="h-11"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Historial
             </Button>
           </div>
         </CardContent>
@@ -129,19 +147,27 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
     );
   }
 
+  // --- FORMULARIO ---
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 max-w-4xl mx-auto pb-10"
+        className="space-y-6 max-w-5xl mx-auto pb-10"
       >
+        {serverError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{serverError}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* BLOQUE 1: DATOS DE LA ORDEN */}
-          <Card className="shadow-sm border-border bg-card">
+          <Card className="shadow-sm border-border bg-card h-full">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" /> Autorización /
-                Orden
+                <FileText className="h-4 w-4 text-primary" /> Autorización
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
@@ -150,7 +176,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                 name="orderNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>N° Receta Agronómica / Orden</FormLabel>
+                    <FormLabel>N° Receta / Orden</FormLabel>
                     <FormControl>
                       <Input placeholder="Ej: 0001-4500" {...field} />
                     </FormControl>
@@ -191,11 +217,11 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
             </CardContent>
           </Card>
 
-          {/* BLOQUE 2: LOGÍSTICA (POLICÍA) */}
-          <Card className="shadow-sm border-border bg-card">
+          {/* BLOQUE 2: LOGÍSTICA */}
+          <Card className="shadow-sm border-border bg-card h-full">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
-                <Truck className="h-4 w-4 text-orange-600" /> Datos de Traslado
+                <Truck className="h-4 w-4 text-orange-600" /> Logística
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
@@ -204,11 +230,16 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                 name="destination"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> Destino (Lote/Campo)
-                    </FormLabel>
+                    <FormLabel>Destino (Campo/Lote)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ej: Lote 4 - El Tolar" {...field} />
+                      <div className="relative">
+                        <MapPin className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          placeholder="Lote 4 - El Tolar"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -220,9 +251,9 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                   name="driver"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Chofer / Retira</FormLabel>
+                      <FormLabel>Chofer</FormLabel>
                       <FormControl>
-                        <Input placeholder="Nombre apellido" {...field} />
+                        <Input placeholder="Nombre" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -233,12 +264,12 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                   name="plate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Patente Vehículo</FormLabel>
+                      <FormLabel>Patente</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="AA 123 BB"
                           {...field}
-                          className="uppercase"
+                          className="uppercase font-mono"
                         />
                       </FormControl>
                       <FormMessage />
@@ -252,39 +283,30 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
 
         {/* BLOQUE 3: CARGA DE PRODUCTOS */}
         <Card className="shadow-sm border-border bg-card">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50">
-            <CardTitle className="text-base">Detalle de Carga</CardTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              // ACTUALIZADO: unit por defecto al agregar fila
-              onClick={() =>
-                append({
-                  productId: "",
-                  quantity: 1,
-                  batch: "",
-                  unit: "Litros",
-                })
-              }
-            >
-              <Plus className="h-4 w-4 mr-2" /> Agregar Producto
-            </Button>
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" /> Detalle de
+              Carga
+            </CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <div className="space-y-4">
+          <CardContent className="pt-2">
+            {/* Lista de Items */}
+            <div className="space-y-3">
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="flex flex-col md:flex-row gap-4 items-start p-4 bg-muted/30 rounded-lg border border-border"
+                  className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start p-4 bg-muted/30 rounded-lg border border-border hover:border-primary/40 transition-colors"
                 >
-                  <div className="flex-1 w-full">
+                  {/* Producto */}
+                  <div className="col-span-1 md:col-span-5">
                     <FormField
                       control={form.control}
                       name={`items.${index}.productId`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">Producto</FormLabel>
+                          <FormLabel className="text-xs text-muted-foreground">
+                            Producto
+                          </FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             defaultValue={field.value}
@@ -308,84 +330,90 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                     />
                   </div>
 
-                  <div className="flex gap-4 w-full md:w-auto">
-                    <div className="w-24">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.quantity`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Cant.</FormLabel>
-                            <FormControl>
-                              {/* ACTUALIZADO: step="0.01" para decimales */}
-                              <Input
-                                type="number"
-                                step="0.01"
-                                {...field}
-                                className="bg-background"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="w-28">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.unit`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">Unidad</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="bg-background">
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="Litros">Litros</SelectItem>
-                                <SelectItem value="Kilos">Kilos</SelectItem>
-                                <SelectItem value="Unidad">Unidad</SelectItem>
-                                <SelectItem value="Bolsas">Bolsas</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="w-28">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.batch`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">
-                              Lote (Opc)
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="L-123"
-                                className="bg-background"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                  {/* Cantidad */}
+                  <div className="col-span-1 md:col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.quantity`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs text-muted-foreground">
+                            Cantidad
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="bg-background"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
-                  <div className="pt-0 md:pt-8 self-end md:self-start">
+                  {/* Unidad */}
+                  <div className="col-span-1 md:col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.unit`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs text-muted-foreground">
+                            Unidad
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-background">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Litros">Litros</SelectItem>
+                              <SelectItem value="Kilos">Kilos</SelectItem>
+                              <SelectItem value="Unidad">Unidad</SelectItem>
+                              <SelectItem value="Bolsas">Bolsas</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Lote */}
+                  <div className="col-span-1 md:col-span-2">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.batch`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs text-muted-foreground">
+                            Lote
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Opcional"
+                              className="bg-background text-sm"
+                              {...field}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Botón Borrar */}
+                  <div className="col-span-1 flex justify-end md:pt-8">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => remove(index)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -395,17 +423,37 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
               ))}
             </div>
 
+            {/* BOTÓN AGREGAR  */}
+            <div className="mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-dashed border-2 py-2 text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5"
+                onClick={() =>
+                  append({
+                    productId: "",
+                    quantity: 1,
+                    batch: "",
+                    unit: "Litros",
+                  })
+                }
+              >
+                <Plus className="h-4 w-4 mr-2" /> Agregar otro producto
+              </Button>
+            </div>
+
+            {/* Observaciones */}
             <div className="mt-6">
               <FormField
                 control={form.control}
                 name="observations"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Observaciones Generales</FormLabel>
+                    <FormLabel>Observaciones (Opcional)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Notas sobre el estado de la carga, clima, etc."
-                        className="resize-none bg-background"
+                        placeholder="Notas sobre el clima, estado del camión, etc."
+                        className="resize-none bg-background min-h-[80px]"
                         {...field}
                       />
                     </FormControl>
@@ -416,19 +464,22 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-4">
+        {/* FOOTER DE ACCIONES */}
+        <div className="flex justify-end gap-4 pt-4 border-t border-border">
           <Button type="button" variant="ghost" onClick={() => router.back()}>
             Cancelar
           </Button>
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="min-w-[150px] bg-primary hover:bg-primary/90 shadow-md"
+            className="min-w-[180px] bg-primary hover:bg-primary/90 shadow-lg"
           >
             {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
-            Confirmar Salida
+            ) : (
+              <Printer className="h-4 w-4 mr-2" />
+            )}
+            Generar Remito
           </Button>
         </div>
       </form>

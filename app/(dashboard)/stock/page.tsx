@@ -1,6 +1,6 @@
 import { StockTable } from "@/features/stock/ui/stock-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
-import { Package, AlertTriangle, Archive, Tags, Layers } from "lucide-react";
+import { Package, AlertTriangle, Archive, Layers } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { type Product } from "@/features/stock/types";
 
@@ -77,7 +77,7 @@ export default async function StockPage() {
           <p className="text-muted-foreground">Control de stock e insumos.</p>
         </div>
         {/* Badge informativa del dólar usado para el cálculo */}
-        <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+        <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium border border-primary/20">
           Dólar Ref. Cálculo: ${dollarRate}
         </div>
       </div>
