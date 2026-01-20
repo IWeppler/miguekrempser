@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { markInvoicePaid } from "@/features/finance/actions/mark-invoice-paid"; // Import the new action
-import { useRouter } from "next/navigation"; // To refresh page data
+import { markInvoicePaid } from "@/features/finance/actions/mark-invoice-paid";
+import { useRouter } from "next/navigation";
 
 import {
   Dialog,
@@ -24,6 +24,8 @@ import {
   Loader2,
   ArrowDownLeft,
   CheckCircle,
+  ExternalLink,
+  ImageIcon,
 } from "lucide-react";
 import { Invoice } from "../types";
 
@@ -44,11 +46,8 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
   const router = useRouter();
   const [movements, setMovements] = useState<LinkedMovement[]>([]);
   const [loadingMovements, setLoadingMovements] = useState(false);
-
-  // Payment loading state
   const [isPaying, setIsPaying] = useState(false);
 
-  // Load movements logic...
   useEffect(() => {
     async function fetchLinkedMovements() {
       if (!invoice?.id || !open) return;
@@ -70,7 +69,6 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
     fetchLinkedMovements();
   }, [invoice, open, supabase]);
 
-  // Handle Payment
   const handleMarkAsPaid = async () => {
     if (!invoice) return;
 
@@ -90,7 +88,7 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] bg-card border-border">
+      <DialogContent className="sm:max-w-[600px] bg-card border-border max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <FileText className="h-5 w-5 text-primary" />
@@ -151,6 +149,39 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
               </p>
             </div>
           </div>
+
+          {/* FILE DOWNLOAD / PREVIEW SECTION */}
+          {invoice.file_url && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-md">
+                  <ImageIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Comprobante Adjunto
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Imagen / PDF disponible
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="gap-2 h-8 text-xs"
+              >
+                <a
+                  href={invoice.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver Archivo <ExternalLink className="h-3 w-3" />
+                </a>
+              </Button>
+            </div>
+          )}
 
           {/* Stock Movement Indicator */}
           <div className="border-t border-border pt-4">

@@ -9,8 +9,15 @@ type CreateInvoiceData = InvoiceSchema & { fileUrl?: string | null };
 export async function createInvoice(data: CreateInvoiceData) {
   const supabase = await createClient();
 
+  // 1. OBTENER USUARIO ACTUAL
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const technicianName =
+    user?.user_metadata?.full_name || user?.email || "Usuario Desconocido";
+
   try {
-    // 1. Validar o Crear Proveedor
+    // 2. GESTIÓN DE PROVEEDOR
     let supplierId = data.supplierId;
 
     if (!supplierId && data.newSupplierName) {
@@ -20,25 +27,26 @@ export async function createInvoice(data: CreateInvoiceData) {
         .select()
         .single();
 
-      if (supplierError) throw new Error("Error al crear proveedor");
+      if (supplierError)
+        throw new Error("Error al crear proveedor: " + supplierError.message);
       supplierId = newSupplier.id;
     }
 
-    if (!supplierId) throw new Error("Falta el proveedor");
+    if (!supplierId) throw new Error("Debe seleccionar o crear un proveedor");
 
-    // 2. Calcular monto total (para guardar en la factura)
+    // 3. CALCULAR TOTALES
     const totalAmount = data.items.reduce(
       (acc, item) => acc + item.quantity * item.unitPrice,
       0,
     );
 
-    // 3. Crear la Factura
+    // 4. CREAR LA FACTURA
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .insert({
         invoice_number: data.invoiceNumber,
         supplier_id: supplierId,
-        created_at: new Date().toISOString(),
+        date: new Date().toISOString(),
         due_date: data.dueDate.toISOString(),
         currency: data.currency,
         exchange_rate: data.exchangeRate,
@@ -51,11 +59,11 @@ export async function createInvoice(data: CreateInvoiceData) {
       .single();
 
     if (invoiceError)
-      throw new Error("Error al crear la factura: " + invoiceError.message);
+      throw new Error("Error al crear factura: " + invoiceError.message);
 
-    // 4. Procesar Ítems: Insertar detalle Y Actualizar Stock/Costo (PPP)
-    for (const item of data.items) {
-      // A. Guardar ítem de factura
+    // 5. PROCESAR ÍTEMS
+    const itemsPromises = data.items.map(async (item) => {
+      // A. Ítem de factura
       const { error: itemError } = await supabase.from("invoice_items").insert({
         invoice_id: invoice.id,
         product_id: item.productId,
@@ -63,63 +71,66 @@ export async function createInvoice(data: CreateInvoiceData) {
         quantity: item.quantity,
         unit_price: item.unitPrice,
       });
+      if (itemError)
+        throw new Error("Error en ítem de factura: " + itemError.message);
 
-      if (itemError) throw new Error("Error al guardar ítem de factura");
+      // B. ACTUALIZAR STOCK Y PPP
+      const { data: product } = await supabase
+        .from("products")
+        .select("current_stock, average_cost, currency")
+        .eq("id", item.productId)
+        .single();
 
-      // B. ACTUALIZAR STOCK Y COSTO (Solo si está vinculado a un producto)
-      if (item.productId) {
-        const { data: product } = await supabase
-          .from("products")
-          .select("current_stock, average_cost")
-          .eq("id", item.productId)
-          .single();
+      if (product) {
+        const oldStock = Number(product.current_stock || 0);
+        const oldCost = Number(product.average_cost || 0);
+        const newQty = Number(item.quantity);
+        let newUnitPrice = Number(item.unitPrice);
 
-        if (product) {
-          const currentStock = Number(product.current_stock || 0);
-          const currentCostUSD = Number(product.average_cost || 0);
-
-          // CÁLCULO DE COSTO DE ESTA COMPRA EN USD
-          const incomingCostUSD =
-            data.currency === "ARS"
-              ? item.unitPrice / data.exchangeRate
-              : item.unitPrice;
-
-          const incomingQty = item.quantity;
-
-          // CÁLCULO PPP (Precio Promedio Ponderado)
-          const totalValueOld = currentStock * currentCostUSD;
-          const totalValueNew = incomingQty * incomingCostUSD;
-          const newTotalStock = currentStock + incomingQty;
-
-          // Evitar división por cero
-          const newAverageCost =
-            newTotalStock > 0
-              ? (totalValueOld + totalValueNew) / newTotalStock
-              : incomingCostUSD;
-
-          // Actualizar producto en DB
-          await supabase
-            .from("products")
-            .update({
-              current_stock: newTotalStock,
-              average_cost: newAverageCost,
-              currency: "USD",
-            })
-            .eq("id", item.productId);
-
-          await supabase.from("movements").insert({
-            type: "IN",
-            product_id: item.productId,
-            quantity: incomingQty,
-            description: `Compra Factura ${data.invoiceNumber}`,
-            date: new Date().toISOString(),
-          });
+        // Conversión moneda
+        if (data.currency === "ARS" && product.currency === "USD") {
+          newUnitPrice = newUnitPrice / (data.exchangeRate || 1);
+        } else if (data.currency === "USD" && product.currency === "ARS") {
+          newUnitPrice = newUnitPrice * (data.exchangeRate || 1);
         }
+
+        // Cálculo PPP
+        const totalStock = oldStock + newQty;
+        let newAverageCost = oldCost;
+        if (totalStock > 0) {
+          newAverageCost =
+            (oldStock * oldCost + newQty * newUnitPrice) / totalStock;
+        }
+
+        await supabase
+          .from("products")
+          .update({
+            current_stock: totalStock,
+            average_cost: newAverageCost,
+          })
+          .eq("id", item.productId);
       }
-    }
+
+      // C. CREAR MOVIMIENTO CON NOMBRE REAL
+      const { error: moveError } = await supabase.from("movements").insert({
+        type: "IN",
+        created_at: new Date().toISOString(),
+        product_id: item.productId,
+        quantity: item.quantity,
+        description: `Factura ${invoice.invoice_number} - ${item.description}`,
+        technician_name: technicianName,
+        invoice_id: invoice.id,
+      });
+
+      if (moveError) console.error("Error creando movimiento:", moveError);
+    });
+
+    await Promise.all(itemsPromises);
 
     revalidatePath("/finanzas");
     revalidatePath("/stock");
+    revalidatePath("/movimientos");
+
     return { success: true, invoice };
   } catch (error: unknown) {
     console.error("Error creating invoice:", error);

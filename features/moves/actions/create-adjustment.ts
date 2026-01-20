@@ -10,20 +10,28 @@ import {
 export async function createAdjustment(data: AdjustmentSchema) {
   const supabase = await createClient();
 
-  // 1. Validar
+  // 1. OBTENER USUARIO ACTUAL (Para auditoría)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Intentamos obtener el nombre, si no tiene, usamos el email, si no, un fallback.
+  const technicianName =
+    user?.user_metadata?.full_name || user?.email || "Usuario Desconocido";
+
+  // 2. Validar
   const result = adjustmentSchema.safeParse(data);
   if (!result.success) return { error: "Datos inválidos" };
 
   const { productId, type, quantity, reason } = result.data;
 
-  // 2. Insertar el Movimiento (Historial)
+  // 3. Insertar el Movimiento (Historial)
   const { error: moveError } = await supabase.from("movements").insert({
-    type: type, // 'IN' o 'OUT'
+    type: type,
     product_id: productId,
     quantity: quantity,
-    description: `Ajuste Manual: ${reason}`, // Guardamos el motivo
-    technician_name: "Admin / Sistema", // O el usuario logueado
-    date: new Date().toISOString(),
+    description: `Ajuste Manual: ${reason}`,
+    technician_name: technicianName,
+    created_at: new Date().toISOString(),
   });
 
   if (moveError) {
@@ -31,8 +39,7 @@ export async function createAdjustment(data: AdjustmentSchema) {
     return { error: "Error al registrar el movimiento" };
   }
 
-  // 3. Actualizar el Stock del Producto
-  // Primero leemos el stock actual
+  // 4. Actualizar el Stock del Producto
   const { data: product } = await supabase
     .from("products")
     .select("current_stock")
@@ -41,10 +48,8 @@ export async function createAdjustment(data: AdjustmentSchema) {
 
   if (product) {
     const current = Number(product.current_stock || 0);
-    // Si es IN suma, si es OUT resta
     const newStock = type === "IN" ? current + quantity : current - quantity;
 
-    // Evitar stock negativo si es salida
     if (newStock < 0) {
       return { error: "Error: El ajuste dejaría el stock en negativo." };
     }
@@ -55,7 +60,7 @@ export async function createAdjustment(data: AdjustmentSchema) {
       .eq("id", productId);
   }
 
-  // 4. Actualizar Vistas
+  // 5. Actualizar Vistas
   revalidatePath("/movimientos");
   revalidatePath("/stock");
   revalidatePath("/");
