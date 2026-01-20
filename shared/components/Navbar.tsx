@@ -196,7 +196,7 @@ export function Header() {
         // --- C. Finanzas (Facturas Vencidas) ---
         const { data: invoicesData, error: invoiceError } = await supabase
           .from("invoices")
-          .select("id, invoice_number, amount, suppliers(name)")
+          .select("id, invoice_number, amount_total, suppliers(name)")
           .eq("status", "overdue")
           .limit(5);
 

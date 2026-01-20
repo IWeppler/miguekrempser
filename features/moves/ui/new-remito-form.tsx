@@ -78,17 +78,29 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
   });
 
   const onSubmit = async (values: RemitoSchema) => {
+    if (isSubmitting) return;
+    // 1. VALIDACIÓN DE DUPLICADOS EN FRONTEND
+    const productIds = values.items.map((i) => i.productId);
+    const uniqueIds = new Set(productIds);
+    if (productIds.length !== uniqueIds.size) {
+      setServerError(
+        "Error: Hay productos duplicados en la lista. Por favor unifícalos.",
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     setServerError(null);
 
-    // Llamada a la Server Action (Descuenta stock en backend)
     const result = await createRemito(values);
     setIsSubmitting(false);
 
     if (result.success) {
       setSuccessData(values);
     } else {
-      setServerError(result.error || "Ocurrió un error inesperado.");
+      setServerError(
+        typeof result.error === "string" ? result.error : "Error desconocido",
+      );
     }
   };
 
@@ -129,7 +141,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  {loading ? "Generando..." : "Descargar PDF (Policía)"}
+                  {loading ? "Generando..." : "Descargar PDF"}
                 </Button>
               )}
             </PDFDownloadLink>

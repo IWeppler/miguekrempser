@@ -7,38 +7,111 @@ import { remitoSchema, type RemitoSchema } from "../schemas/remito-schema";
 export async function createRemito(data: RemitoSchema) {
   const supabase = await createClient();
 
-  // 1. Validar datos
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const technicianName =
+    user?.user_metadata?.full_name || user?.email || "Usuario Desconocido";
+
   const result = remitoSchema.safeParse(data);
   if (!result.success) {
+    console.error("❌ Error de validación Zod", result.error);
     return { error: "Datos inválidos" };
   }
 
-  const cleanData = result.data;
+  const { orderNumber, destination, driver, plate, observations, items } =
+    result.data;
 
   try {
-    // 2. LLAMAR A LA TRANSACCIÓN SQL (RPC)
-    const { error } = await supabase.rpc("create_remito_transaction", {
-      p_order_number: cleanData.orderNumber,
-      p_technician: cleanData.technician,
-      p_destination: cleanData.destination,
-      p_driver: cleanData.driver,
-      p_plate: cleanData.plate,
-      p_observations: cleanData.observations || "",
-      p_items: cleanData.items,
+    // 3. VERIFICACIÓN DE STOCK
+    for (const item of items) {
+      const { data: product } = await supabase
+        .from("products")
+        .select("name, current_stock")
+        .eq("id", item.productId)
+        .single();
+
+      const current = Number(product?.current_stock || 0);
+
+      if (!product)
+        throw new Error(`Producto no encontrado ID: ${item.productId}`);
+
+      if (current < item.quantity) {
+        console.error("❌ Stock Insuficiente");
+        throw new Error(
+          `Stock insuficiente para ${product.name}. Tienes: ${current}, Solicitados: ${item.quantity}`,
+        );
+      }
+    }
+
+    // 4. CREAR REMITO
+    const { data: remito, error: remitoError } = await supabase
+      .from("remitos")
+      .insert({
+        order_number: orderNumber,
+        technician: technicianName,
+        destination: destination,
+        driver: driver,
+        plate: plate,
+        status: "completed",
+        observations: observations,
+        date: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (remitoError) throw new Error("Error DB Remito: " + remitoError.message);
+
+    // 5. PROCESAR ITEMS
+    const itemsPromises = items.map(async (item) => {
+      // A. Item Detalle
+      await supabase.from("remito_items").insert({
+        remito_id: remito.id,
+        product_id: item.productId,
+        quantity: item.quantity,
+        product_name: item.notes || "Producto",
+      });
+
+      // B. Movimiento
+      await supabase.from("movements").insert({
+        type: "OUT",
+        created_at: new Date().toISOString(),
+        product_id: item.productId,
+        quantity: item.quantity,
+        notes: `Remito #${orderNumber}`,
+        technician_name: technicianName,
+        remito_id: remito.id,
+      });
+
+      // C. RESTA DE STOCK (MANUAL - SIN RPC PARA DEBUGGEAR EL ERROR)
+      const { data: prodToUpdate } = await supabase
+        .from("products")
+        .select("current_stock")
+        .eq("id", item.productId)
+        .single();
+
+      const stockBeforeUpdate = Number(prodToUpdate?.current_stock || 0);
+      const newStock = stockBeforeUpdate - item.quantity;
+
+      const { error: updateError } = await supabase
+        .from("products")
+        .update({ current_stock: newStock })
+        .eq("id", item.productId);
+
+      if (updateError) console.error("❌ Error updating stock", updateError);
     });
 
-    if (error) throw new Error(error.message);
+    await Promise.all(itemsPromises);
 
-    // 3. Revalidar
+    revalidatePath("/");
     revalidatePath("/movimientos");
     revalidatePath("/stock");
-    revalidatePath("/");
 
     return { success: true };
   } catch (error: unknown) {
-    console.error("Error creating remito:", error);
-    let msg = "Error desconocido";
-    if (error instanceof Error) msg = error.message;
-    return { error: msg };
+    console.error("🔥 EXCEPCIÓN EN CREATE REMITO:", error);
+    return {
+      error: error instanceof Error ? error.message : "Error desconocido",
+    };
   }
 }
