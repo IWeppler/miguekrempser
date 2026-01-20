@@ -38,14 +38,14 @@ export async function createInvoice(data: CreateInvoiceData) {
       .insert({
         invoice_number: data.invoiceNumber,
         supplier_id: supplierId,
-        date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         due_date: data.dueDate.toISOString(),
         currency: data.currency,
         exchange_rate: data.exchangeRate,
         amount_total: totalAmount,
         status: "pending",
         description: data.description,
-        image_url: data.fileUrl,
+        file_url: data.fileUrl,
       })
       .select()
       .single();

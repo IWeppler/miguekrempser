@@ -6,9 +6,9 @@ import { ExpenseDonut } from "@/features/dashboard/ui/expense-donut";
 import { KpiCards } from "@/features/dashboard/ui/kpi-cards";
 import { QuickActions } from "@/features/dashboard/ui/quick-actions";
 import { RecentMovementsTable } from "@/features/dashboard/ui/recent-movements-table";
-import { DollarCard } from "@/features/dashboard/ui/dollar-card"; // <--- IMPORTAR
+import { DollarCard } from "@/features/dashboard/ui/dollar-card";
 
-// TYPES (Importados correctamente)
+// TYPES
 import { type Product } from "@/features/stock/types";
 import { type Movement } from "@/features/moves/types";
 import { type Invoice } from "@/features/finance/types";
@@ -47,7 +47,7 @@ export default async function DashboardPage() {
     supabase
       .from("products")
       .select(
-        "id, name, category, current_stock, min_stock_alert, unit, average_cost, location",
+        "id, name, category, current_stock, min_stock_alert, unit, average_cost, location, currency",
       ),
     supabase
       .from("movements")
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       .eq("status", "pending"),
   ]);
 
-  // 2. NORMALIZACIÓN (Sin cambios, igual que antes)
+  // 2. NORMALIZACIÓN
   const products = (productsRes.data || []) as unknown as Product[];
 
   const rawMovements = (movementsRes.data ||
@@ -112,9 +112,13 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* COLUMNA IZQUIERDA (Operativa) */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="contents">
+          {/* A. KPI CARDS + DOLAR (Layout Híbrido) */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="md:col-span-3">
               <KpiCards invoices={invoices} products={products} />
+            </div>
+            {/* Dólar ocupa 1 columna */}
+            <div className="md:col-span-1">
               <DollarCard />
             </div>
           </div>

@@ -92,15 +92,6 @@ export default async function FinanzasPage() {
 
       {/* TABLA */}
       <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-bold text-foreground">
-            Estado de Cuenta Corriente
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Gestión detallada de facturas y pagos a proveedores
-          </p>
-        </div>
-
         <InvoicesTable
           products={products}
           initialInvoices={tableInvoices}

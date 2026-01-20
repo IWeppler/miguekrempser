@@ -138,10 +138,18 @@ export function FinanceStats({
         )}
       </div>
 
-      {/* GRID DE CARDS */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* GRID / SLIDER HÍBRIDO 
+          - Mobile: Flex + Overflow-x (Slider)
+          - Desktop (md+): Grid normal
+      */}
+      <div className="
+        flex overflow-x-auto pb-4 gap-4 snap-x snap-mandatory scrollbar-hide  
+        -mx-4 px-4 md:mx-0 md:px-0 md:pb-0
+        md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible
+      ">
+        
         {/* Card 1: Deuda Total */}
-        <Card className="shadow-sm border-l-4 border-l-destructive bg-card">
+        <Card className="shadow-sm border-l-4 border-l-destructive bg-card min-w-[85%] md:min-w-0 snap-center">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Deuda Total
@@ -161,7 +169,7 @@ export function FinanceStats({
         </Card>
 
         {/* Card 2: Vencimientos */}
-        <Card className="shadow-sm border-l-4 border-l-orange-500 bg-card">
+        <Card className="shadow-sm border-l-4 border-l-orange-500 bg-card min-w-[85%] md:min-w-0 snap-center">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Vencimientos Mes
@@ -181,7 +189,7 @@ export function FinanceStats({
         </Card>
 
         {/* Card 3: Vencido */}
-        <Card className="shadow-sm border-l-4 border-l-primary bg-card">
+        <Card className="shadow-sm border-l-4 border-l-primary bg-card min-w-[85%] md:min-w-0 snap-center">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Vencido (Exigible)
@@ -213,7 +221,7 @@ export function FinanceStats({
         </Card>
 
         {/* Card 4: Histórico Pagado */}
-        <Card className="shadow-sm border-l-4 border-l-muted-foreground bg-card">
+        <Card className="shadow-sm border-l-4 border-l-muted-foreground bg-card min-w-[85%] md:min-w-0 snap-center">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Pagado Campaña

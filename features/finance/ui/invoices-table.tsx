@@ -127,19 +127,21 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
         onOpenChange={setDetailOpen}
       />
 
-      {/* BARRA DE HERRAMIENTAS */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-card p-4 rounded-lg border border-border shadow-sm">
-        <div className="relative w-full md:w-96">
+      {/* BARRA DE HERRAMIENTAS OPTIMIZADA */}
+      <div className="flex flex-row gap-3 items-center bg-card p-3 rounded-lg border border-border shadow-sm">
+        {/* BUSCADOR */}
+        <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por proveedor o nro..."
-            className="pl-9 bg-background border-input"
+            placeholder="Buscar..."
+            className="pl-9 h-10 bg-background border-input w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          {/* Botón de Filtros eliminado como pediste, solo queda Crear Factura */}
+
+        {/* BOTÓN DE ACCIÓN (No se estira, ocupa lo justo) */}
+        <div className="flex-none">
           <CreateInvoiceDialog products={products} suppliers={suppliers} />
         </div>
       </div>

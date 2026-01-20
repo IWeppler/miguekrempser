@@ -4,6 +4,7 @@ import { Invoice } from "@/features/finance/types";
 import { Product } from "@/features/stock/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { TrendingUp, AlertTriangle, Coins } from "lucide-react";
+import { useDolar } from "@/shared/hooks/use-dolar"; // <--- 1. Importamos el hook
 
 // Helper para formatear dinero
 const formatMoney = (amount: number, currency: "USD" | "ARS") => {
@@ -15,7 +16,7 @@ const formatMoney = (amount: number, currency: "USD" | "ARS") => {
   }).format(amount);
 };
 
-// Componente visual para mostrar ARS y USD juntos
+// Componente visual para mostrar ARS y USD juntos (Para Deudas)
 const PriceDisplay = ({ totals }: { totals: { ARS: number; USD: number } }) => {
   const showARS = totals.ARS > 0;
   const showUSD = totals.USD > 0;
@@ -44,7 +45,12 @@ interface Props {
 }
 
 export function KpiCards({ invoices, products }: Props) {
-  // 1. CÁLCULO DE DEUDA
+  // 2. OBTENER COTIZACIÓN DEL DÓLAR
+  const { oficial } = useDolar();
+  // Usamos un valor por defecto (ej. 1150) para evitar división por cero mientras carga
+  const exchangeRate = oficial?.venta || 1150;
+
+  // 1. CÁLCULO DE DEUDA (Mantiene monedas separadas)
   const totalDebt = invoices.reduce(
     (acc, inv) => {
       const amount = Number(inv.amount_total || inv.amount_total || 0);
@@ -63,17 +69,25 @@ export function KpiCards({ invoices, products }: Props) {
     (p) => (p.current_stock || 0) <= (p.min_stock_alert || 0),
   );
 
-  // 3. NUEVO: CÁLCULO DE STOCK VALORIZADO (USD)
+  // 3. CÁLCULO DE STOCK VALORIZADO (NORMALIZADO A USD)
   const totalStockValue = products.reduce((acc, p) => {
     const stock = Number(p.current_stock || 0);
     const cost = Number(p.average_cost || 0);
-    return acc + stock * cost;
+    let totalLine = stock * cost;
+
+    // MAGIA AQUÍ: Si es ARS, convertimos a USD usando la cotización
+    if (p.currency === "ARS") {
+      totalLine = totalLine / exchangeRate;
+    }
+
+    return acc + totalLine;
   }, 0);
 
   return (
-    <>
+    /* CONTENEDOR HÍBRIDO: SLIDER (MOBILE) / GRID (DESKTOP) */
+    <div className="flex overflow-x-auto pb-4 gap-4 snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:grid md:grid-cols-3 md:overflow-visible">
       {/* KPI 1: Deuda */}
-      <Card className="bg-primary text-primary-foreground border-none shadow-md relative overflow-hidden">
+      <Card className="bg-primary text-primary-foreground border-none shadow-md relative overflow-hidden min-w-[85%] md:min-w-0 snap-center">
         <div className="absolute top-0 right-0 p-4 opacity-10">
           <TrendingUp className="h-20 w-20" />
         </div>
@@ -91,7 +105,7 @@ export function KpiCards({ invoices, products }: Props) {
       </Card>
 
       {/* KPI 2: Alertas */}
-      <Card className="shadow-sm border-border bg-card">
+      <Card className="shadow-sm border-border bg-card min-w-[85%] md:min-w-0 snap-center">
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-muted-foreground text-sm font-medium">
             Alertas Stock
@@ -114,8 +128,8 @@ export function KpiCards({ invoices, products }: Props) {
         </CardContent>
       </Card>
 
-      {/* KPI 3: STOCK VALORIZADO (Reemplaza a Combustible) */}
-      <Card className="shadow-sm border-border bg-card">
+      {/* KPI 3: STOCK VALORIZADO */}
+      <Card className="shadow-sm border-border bg-card min-w-[85%] md:min-w-0 snap-center">
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-muted-foreground text-sm font-medium">
             Stock Valorizado
@@ -124,7 +138,6 @@ export function KpiCards({ invoices, products }: Props) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-foreground">
-            {/* Usamos Intl para formatear bonito en USD sin decimales */}
             {new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: "USD",
@@ -136,6 +149,6 @@ export function KpiCards({ invoices, products }: Props) {
           </p>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

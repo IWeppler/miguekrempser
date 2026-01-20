@@ -30,7 +30,7 @@ export default async function NuevoRemitoPage() {
             Operaciones &gt; Remito Salida
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Nuevo Remito de Salida
+            Nuevo Remito
           </h1>
         </div>
         <div className="flex items-center gap-2">
