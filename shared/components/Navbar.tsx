@@ -27,6 +27,7 @@ import {
   Sprout,
   ChevronDown,
   Loader2,
+  CheckCheck, // Nuevo icono para marcar todo como leido si quisieras
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -98,6 +99,9 @@ export function Header() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoadingNotifs, setIsLoadingNotifs] = useState(true);
 
+  // --- NUEVO ESTADO: IDs de notificaciones leídas ---
+  const [readIds, setReadIds] = useState<string[]>([]);
+
   // 1. USUARIO
   useEffect(() => {
     async function getUser() {
@@ -112,6 +116,39 @@ export function Header() {
   const userName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuario";
   const userEmail = user?.email || "cargando...";
+
+  // --- NUEVO: Cargar leídas del LocalStorage al iniciar ---
+  useEffect(() => {
+    const storedReads = localStorage.getItem("agro_read_notifications");
+    if (storedReads) {
+      try {
+        setReadIds(JSON.parse(storedReads));
+      } catch (e) {
+        console.error("Error parsing read notifications", e);
+      }
+    }
+  }, []);
+
+  // --- NUEVO: Función para marcar como leída ---
+  const markAsRead = (id: string) => {
+    if (!readIds.includes(id)) {
+      const updatedReads = [...readIds, id];
+      setReadIds(updatedReads);
+      localStorage.setItem(
+        "agro_read_notifications",
+        JSON.stringify(updatedReads),
+      );
+    }
+  };
+
+  // --- NUEVO: Función para marcar TODAS como leídas ---
+  const markAllAsRead = () => {
+    const allIds = notifications.map((n) => n.id);
+    // Fusionamos las que ya estaban leídas con las nuevas
+    const uniqueIds = Array.from(new Set([...readIds, ...allIds]));
+    setReadIds(uniqueIds);
+    localStorage.setItem("agro_read_notifications", JSON.stringify(uniqueIds));
+  };
 
   // 2. CLIMA
   useEffect(() => {
@@ -132,7 +169,7 @@ export function Header() {
     fetchWeather();
   }, []);
 
-  // 3. NOTIFICACIONES (Sin ANY)
+  // 3. NOTIFICACIONES
   useEffect(() => {
     async function fetchNotifications() {
       if (!user) return;
@@ -140,6 +177,7 @@ export function Header() {
       const notifs: NotificationItem[] = [];
 
       const now = new Date();
+      // Ajuste básico de zona horaria si es necesario, aunque date-fns o similar sería mejor
       const offsetArgentina = -3 * 60;
       const nowArg = new Date(now.getTime() + offsetArgentina * 60 * 1000);
       const todayISO = nowArg.toISOString().split("T")[0];
@@ -150,12 +188,8 @@ export function Header() {
           .rpc("get_critical_stock")
           .limit(5);
 
-        if (stockError) {
-          console.error("Error stock RPC:", stockError);
-        } else if (criticalData) {
-          // Casteamos la respuesta genérica a nuestra interfaz
+        if (!stockError && criticalData) {
           const products = criticalData as unknown as ProductStock[];
-
           products.forEach((p) => {
             notifs.push({
               id: `stock-${p.id}`,
@@ -176,18 +210,15 @@ export function Header() {
           .lte("date", `${todayISO}T23:59:59`)
           .order("time", { ascending: true });
 
-        if (eventError) {
-          // Ignoramos si la tabla no existe para no saturar consola
-        } else if (eventsData) {
+        if (!eventError && eventsData) {
           const events = eventsData as unknown as CalendarEvent[];
-
           events.forEach((e) => {
             notifs.push({
               id: `event-${e.id}`,
               type: "event",
               title: "Agenda: Hoy",
               description: `${e.time} hs - ${e.title}`,
-              link: "/",
+              link: "/", // Quizás linkear a una vista de agenda
               date: new Date(e.date),
             });
           });
@@ -200,10 +231,8 @@ export function Header() {
           .eq("status", "overdue")
           .limit(5);
 
-        if (invoiceError) {
-        } else if (invoicesData) {
+        if (!invoiceError && invoicesData) {
           const invoices = invoicesData as unknown as InvoiceWithSupplier[];
-
           invoices.forEach((inv) => {
             const supplierData = Array.isArray(inv.suppliers)
               ? inv.suppliers[0]
@@ -232,6 +261,11 @@ export function Header() {
     fetchNotifications();
   }, [supabase, user]);
 
+  // --- CALCULAR NO LEÍDAS ---
+  const unreadCount = notifications.filter(
+    (n) => !readIds.includes(n.id),
+  ).length;
+
   const getWeatherIcon = (code: number) => {
     if (code <= 1) return <Sun className="h-5 w-5 text-orange-500" />;
     if (code <= 3) return <Cloud className="h-5 w-5 text-slate-400" />;
@@ -245,7 +279,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background px-4 shadow-sm md:px-6">
-      {/* --- MOBILE MENU --- */}
+      {/* ... (MOBILE MENU IGUAL QUE ANTES) ... */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button
@@ -344,7 +378,8 @@ export function Header() {
               className="relative text-muted-foreground hover:text-foreground hover:bg-accent"
             >
               <Bell className="h-5 w-5" />
-              {notifications.length > 0 && (
+              {/* CAMBIO: Usamos unreadCount en lugar de notifications.length */}
+              {unreadCount > 0 && (
                 <span className="absolute top-2 right-2 h-2 w-2 bg-destructive rounded-full border-2 border-background animate-pulse"></span>
               )}
             </Button>
@@ -357,14 +392,25 @@ export function Header() {
               <span className="font-semibold text-sm text-foreground">
                 Notificaciones
               </span>
-              {notifications.length > 0 && (
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Marcar todas como leídas"
+                    onClick={markAllAsRead}
+                  >
+                    <CheckCheck className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                  </Button>
+                )}
                 <Badge
                   variant="secondary"
                   className="bg-primary/10 text-primary"
                 >
-                  {notifications.length}
+                  {unreadCount} Nuevas
                 </Badge>
-              )}
+              </div>
             </div>
             <ScrollArea className="h-[300px]">
               {isLoadingNotifs ? (
@@ -373,32 +419,51 @@ export function Header() {
                 </div>
               ) : notifications.length > 0 ? (
                 <div className="flex flex-col">
-                  {notifications.map((notif) => (
-                    <Link
-                      key={notif.id}
-                      href={notif.link}
-                      className="flex items-start gap-3 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border last:border-0"
-                    >
-                      <div
+                  {notifications.map((notif) => {
+                    const isRead = readIds.includes(notif.id);
+                    return (
+                      <Link
+                        key={notif.id}
+                        href={notif.link}
+                        onClick={() => markAsRead(notif.id)}
                         className={cn(
-                          "mt-1 h-2 w-2 rounded-full shrink-0",
-                          notif.type === "stock"
-                            ? "bg-destructive"
-                            : notif.type === "invoice"
-                              ? "bg-orange-500"
-                              : "bg-primary",
+                          "flex items-start gap-3 px-4 py-3 transition-colors border-b border-border last:border-0",
+                          isRead
+                            ? "bg-background opacity-60 hover:bg-muted/30" // Estilo para leídas
+                            : "bg-muted/30 hover:bg-muted", // Estilo para NO leídas
                         )}
-                      />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground leading-none">
-                          {notif.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground leading-snug">
-                          {notif.description}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
+                      >
+                        <div
+                          className={cn(
+                            "mt-1 h-2 w-2 rounded-full shrink-0",
+                            // Si está leída, ponemos el punto gris o transparente
+                            isRead
+                              ? "bg-border"
+                              : notif.type === "stock"
+                                ? "bg-destructive"
+                                : notif.type === "invoice"
+                                  ? "bg-orange-500"
+                                  : "bg-primary",
+                          )}
+                        />
+                        <div className="space-y-1">
+                          <p
+                            className={cn(
+                              "text-sm leading-none",
+                              isRead
+                                ? "font-normal text-muted-foreground"
+                                : "font-medium text-foreground",
+                            )}
+                          >
+                            {notif.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-snug">
+                            {notif.description}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-8 text-center text-muted-foreground text-sm">
@@ -410,6 +475,7 @@ export function Header() {
           </PopoverContent>
         </Popover>
 
+        {/* ... (USER MENU IGUAL QUE ANTES) ... */}
         <div className="h-6 w-px bg-border hidden sm:block"></div>
 
         <DropdownMenu>

@@ -11,6 +11,7 @@ import {
   Sprout,
   History,
   PanelLeft,
+  Map,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 
@@ -19,6 +20,7 @@ const menuItems = [
   { name: "Stock", href: "/stock", icon: Package },
   { name: "Movimientos", href: "/movimientos", icon: History },
   { name: "Finanzas", href: "/finanzas", icon: FileText },
+  { name: "Lotes", href: "/lotes", icon: Map },
 ];
 
 export function Sidebar() {
@@ -30,14 +32,14 @@ export function Sidebar() {
       className={cn(
         "hidden md:flex flex-col h-full border-r transition-all duration-300",
         "bg-sidebar border-sidebar-border",
-        isCollapsed ? "w-[70px]" : "w-64"
+        isCollapsed ? "w-[70px]" : "w-64",
       )}
     >
       <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
         <div
           className={cn(
             "flex items-center w-full",
-            isCollapsed ? "justify-center" : "justify-between"
+            isCollapsed ? "justify-center" : "justify-between",
           )}
         >
           {/* LOGO */}
@@ -59,7 +61,7 @@ export function Sidebar() {
             <PanelLeft
               className={cn(
                 "h-5 w-5 transition-all",
-                isCollapsed && "rotate-180"
+                isCollapsed && "rotate-180",
               )}
             />
           </Button>
@@ -83,7 +85,7 @@ export function Sidebar() {
                       ? "bg-sidebar-accent text-sidebar-primary shadow-sm border border-sidebar-border border-l-4 border-l-sidebar-primary"
                       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 
-                    isCollapsed && "justify-center px-2"
+                    isCollapsed && "justify-center px-2",
                   )}
                   title={isCollapsed ? item.name : undefined}
                 >
@@ -92,7 +94,7 @@ export function Sidebar() {
                       "h-5 w-5 shrink-0 transition-colors",
                       isActive
                         ? "text-sidebar-primary"
-                        : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
+                        : "text-muted-foreground group-hover:text-sidebar-accent-foreground",
                     )}
                   />
 
