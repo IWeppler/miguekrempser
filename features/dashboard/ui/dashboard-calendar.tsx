@@ -215,7 +215,7 @@ export function DashboardCalendar() {
   };
 
   return (
-    <Card className="shadow-sm border-border h-full flex flex-col overflow-hidden bg-card relative">
+    <Card className="shadow-sm border-border w-full h-fit flex flex-col overflow-hidden bg-card relative">
       {/* HEADER DINÁMICO */}
       <CardHeader className="py-3 px-4 border-b border-border min-h-[50px] flex justify-center bg-card z-20 relative">
         <div className="flex items-center justify-between w-full">
@@ -264,7 +264,6 @@ export function DashboardCalendar() {
           )}
         </div>
       </CardHeader>
-
       <CardContent className="p-0 flex-1 relative bg-card z-10 flex flex-col">
         {/* VISTA 1: CALENDARIO */}
         {view === "calendar" && (

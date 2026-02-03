@@ -131,11 +131,11 @@ export default async function DashboardPage() {
         </div>
 
         {/* COLUMNA DERECHA (Gestión) */}
-        <div className="space-y-6">
-          <div className="h-[calc(30%)]">
+        <div className="flex flex-col gap-6">
+          <div className="w-full h-fit">
             <DashboardCalendar />
           </div>
-          <div className="h-[calc(30%)]">
+          <div className="min-h-[300px] h-fit">
             <ExpenseDonut />
           </div>
         </div>
