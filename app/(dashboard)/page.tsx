@@ -132,10 +132,12 @@ export default async function DashboardPage() {
 
         {/* COLUMNA DERECHA (Gestión) */}
         <div className="space-y-6">
-          <div className="h-[calc(70%)]">
+          <div className="h-[calc(30%)]">
             <DashboardCalendar />
           </div>
-          <ExpenseDonut />
+          <div className="h-[calc(30%)]">
+            <ExpenseDonut />
+          </div>
         </div>
       </div>
     </div>
