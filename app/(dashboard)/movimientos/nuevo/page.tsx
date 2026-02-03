@@ -18,7 +18,7 @@ export default async function NuevoRemitoPage() {
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name")
+    .select("id, name, unit")
     .order("name");
 
   return (

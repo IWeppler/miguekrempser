@@ -93,7 +93,7 @@ export function ExpenseDonut() {
 
   const totalValue = useMemo(
     () => data.reduce((acc, curr) => acc + curr.value, 0),
-    [data]
+    [data],
   );
 
   if (loading) {
@@ -108,7 +108,7 @@ export function ExpenseDonut() {
     <Card className="bg-card border-border flex flex-col">
       <CardHeader className="pb-0">
         <CardTitle className="text-sm font-bold text-foreground">
-          Distribución de Salidas (Stock)
+          Distribución de Salidas
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-between">

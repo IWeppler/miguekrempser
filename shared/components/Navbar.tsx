@@ -297,7 +297,7 @@ export function Header() {
         >
           <SheetHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-6">
             <SheetTitle className="flex items-center gap-2 text-sidebar-primary">
-              <Sprout className="h-6 w-6" /> AgroGestión
+              <Sprout className="h-6 w-6" />El Tolar SA
             </SheetTitle>
           </SheetHeader>
           <nav className="flex-1 py-4 px-3">
@@ -346,7 +346,7 @@ export function Header() {
       {/* MOBILE LOGO */}
       <div className="flex items-center gap-2 font-bold text-primary md:hidden">
         <Sprout className="h-5 w-5" />
-        <span className="hidden sm:inline">AgroGestión</span>
+        <span className="hidden sm:inline"> El Tolar SA</span>
       </div>
 
       {/* --- DESKTOP LEFT --- */}

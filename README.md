@@ -1,4 +1,4 @@
-# 🚜 AgroGestión - Sistema de Logística y Administración Agrícola
+# 🚜 El Tolar - Sistema de Logística y Administración Agrícola
 
 Plataforma de gestión integral desarrollada a medida para productores agropecuarios. El sistema nació con el objetivo principal de digitalizar el control de stock en galpones y la logística de insumos, evolucionando para integrar módulos financieros y, recientemente, la planificación productiva de lotes.
 

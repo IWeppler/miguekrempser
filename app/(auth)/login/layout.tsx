@@ -27,7 +27,7 @@ export default function AuthLayout({
         {/* Texto sobre la imagen */}
         <div className="absolute bottom-0 left-0 p-12 z-20 text-white max-w-lg">
           <div className="inline-block px-3 py-1 mb-6 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-xs font-medium tracking-wide">
-            🌱 AgroGestión 2.0
+            🌱 El Tolar SA 2.0
           </div>
           <h2 className="text-4xl font-bold mb-4 leading-tight tracking-tight">
             Transforma tus ideas en cultivos exitosos.
@@ -44,7 +44,7 @@ export default function AuthLayout({
         <div className="w-full max-w-[480px] px-6 lg:px-8">{children}</div>
 
         <div className="absolute bottom-6 text-center text-xs text-foreground/50">
-          © 2026 AgroGestión Inc.
+          © 2026 El Tolar SA
         </div>
       </div>
     </div>

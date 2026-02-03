@@ -46,7 +46,7 @@ export function Sidebar() {
           {!isCollapsed && (
             <div className="flex items-center gap-2 font-bold text-sidebar-primary overflow-hidden whitespace-nowrap transition-all">
               <Sprout className="h-6 w-6 shrink-0" />
-              <span>AgroGestión</span>
+              <span>El Tolar SA</span>
             </div>
           )}
 

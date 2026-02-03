@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, useFieldArray, type Resolver } from "react-hook-form";
+import { useState, useEffect } from "react";
+import {
+  useForm,
+  useFieldArray,
+  useWatch,
+  type Resolver,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   remitoSchema,
   type RemitoSchema,
 } from "@/features/moves/schemas/remito-schema";
-// IMPORTANTE: Usamos la Server Action, no lógica inline
 import { createRemito } from "@/features/moves/actions/create-remito";
 import { useRouter } from "next/navigation";
 import { PDFDownloadLink } from "@react-pdf/renderer";
@@ -47,7 +51,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 
 interface Props {
-  products: { id: string; name: string }[];
+  products: { id: string; name: string; unit: string }[];
   profiles: { id: string; full_name: string | null }[];
   currentUserEmail?: string;
   currentUserName?: string;
@@ -76,6 +80,27 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
     control: form.control,
     name: "items",
   });
+
+  const watchedItems = useWatch({
+    control: form.control,
+    name: "items",
+  });
+
+  useEffect(() => {
+    (watchedItems || []).forEach((item, index) => {
+      if (item.productId) {
+        const originalProduct = products.find((p) => p.id === item.productId);
+
+        if (originalProduct && originalProduct.unit !== item.unit) {
+          form.setValue(
+            `items.${index}.unit`, 
+            originalProduct.unit as "Litros" | "Kilos" | "Unidad" | "Bolsas"
+          );
+          
+        }
+      }
+    });
+  }, [watchedItems, products, form]);
 
   const onSubmit = async (values: RemitoSchema) => {
     if (isSubmitting) return;
@@ -177,7 +202,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* BLOQUE 1: DATOS DE LA ORDEN */}
           <Card className="shadow-sm border-border bg-card h-full">
-            <CardHeader className="pb-3 border-b border-border/50">
+            <CardHeader className="border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" /> Autorización
               </CardTitle>
@@ -231,7 +256,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
 
           {/* BLOQUE 2: LOGÍSTICA */}
           <Card className="shadow-sm border-border bg-card h-full">
-            <CardHeader className="pb-3 border-b border-border/50">
+            <CardHeader className="border-b border-border/50">
               <CardTitle className="text-base flex items-center gap-2">
                 <Truck className="h-4 w-4 text-orange-600" /> Logística
               </CardTitle>
@@ -263,7 +288,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                   name="driver"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Chofer</FormLabel>
+                      <FormLabel>Responsable</FormLabel>
                       <FormControl>
                         <Input placeholder="Nombre" {...field} />
                       </FormControl>
@@ -295,7 +320,7 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
 
         {/* BLOQUE 3: CARGA DE PRODUCTOS */}
         <Card className="shadow-sm border-border bg-card">
-          <CardHeader className="pb-3 border-b border-border/50">
+          <CardHeader className="border-b border-border/50">
             <CardTitle className="text-base flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-600" /> Detalle de
               Carga
@@ -376,22 +401,14 @@ export function NewRemitoForm({ products, profiles, currentUserName }: Props) {
                           <FormLabel className="text-xs text-muted-foreground">
                             Unidad
                           </FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="bg-background">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Litros">Litros</SelectItem>
-                              <SelectItem value="Kilos">Kilos</SelectItem>
-                              <SelectItem value="Unidad">Unidad</SelectItem>
-                              <SelectItem value="Bolsas">Bolsas</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              readOnly
+                              className="bg-muted text-muted-foreground cursor-not-allowed focus-visible:ring-0"
+                            />
+                          </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />

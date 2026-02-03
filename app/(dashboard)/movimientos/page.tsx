@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { Button } from "@/shared/ui/button";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CreateAdjustmentDialog } from "@/features/moves/ui/create-adjustment-dialog";
-// Importamos el nuevo componente de tabla
 import { MovementsTable } from "@/features/moves/ui/movements-table";
 import { Movement } from "@/features/moves/types";
 
@@ -72,7 +71,7 @@ export default async function HistorialPage({
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-border">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Historial de Operaciones
+            Historial de Movimientos
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Bitácora completa de ingresos y egresos de stock.
@@ -97,7 +96,7 @@ export default async function HistorialPage({
         {/* FOOTER PAGINACIÓN DEL SERVIDOR */}
         <Card className="shadow-sm border border-border bg-card rounded-t-none border-t-0">
           <CardContent className="p-0">
-            <div className="px-6 py-4 flex items-center justify-between">
+            <div className="px-6 flex items-center justify-between">
               <div className="text-xs text-muted-foreground font-medium">
                 Página {currentPage} de {totalPages || 1}{" "}
                 <span className="text-muted-foreground/30 mx-2">|</span> {count}{" "}
