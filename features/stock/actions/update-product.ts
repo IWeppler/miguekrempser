@@ -6,7 +6,15 @@ import { Product } from "../types";
 
 type UpdateProductData = Pick<
   Product,
-  "id" | "name" | "location" | "min_stock_alert" | "average_cost" | "currency"
+  | "id"
+  | "name"
+  | "category"
+  | "unit"
+  | "location"
+  | "min_stock_alert"
+  | "average_cost"
+  | "currency"
+  | "description"
 >;
 
 export async function updateProduct(data: UpdateProductData) {
@@ -17,10 +25,13 @@ export async function updateProduct(data: UpdateProductData) {
       .from("products")
       .update({
         name: data.name,
+        category: data.category,
+        unit: data.unit,
         location: data.location,
         min_stock_alert: data.min_stock_alert,
         average_cost: data.average_cost,
         currency: data.currency,
+        description: data.description,
       })
       .eq("id", data.id);
 

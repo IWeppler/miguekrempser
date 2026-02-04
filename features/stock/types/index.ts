@@ -8,4 +8,5 @@ export interface Product {
   location?: string | null;
   average_cost?: number | null;
   currency: "USD" | "ARS";
+  description?: string | null;
 }

@@ -9,6 +9,7 @@ type CreateInvoiceData = InvoiceSchema & { fileUrl?: string | null };
 export async function createInvoice(data: CreateInvoiceData) {
   const supabase = await createClient();
 
+  
   // 1. OBTENER USUARIO ACTUAL
   const {
     data: { user },
@@ -63,7 +64,7 @@ export async function createInvoice(data: CreateInvoiceData) {
 
     // 5. PROCESAR ÍTEMS
     const itemsPromises = data.items.map(async (item) => {
-      // A. Ítem de factura
+      // A. Ítem de factura (Registro Financiero)
       const { error: itemError } = await supabase.from("invoice_items").insert({
         invoice_id: invoice.id,
         product_id: item.productId,
@@ -74,7 +75,10 @@ export async function createInvoice(data: CreateInvoiceData) {
       if (itemError)
         throw new Error("Error en ítem de factura: " + itemError.message);
 
-      // B. ACTUALIZAR STOCK Y PPP
+      // B. CÁLCULO DE COSTO PROMEDIO (PPP)
+      // NOTA: Ya NO actualizamos el stock aquí para evitar duplicación con el Trigger.
+      // Solo calculamos y actualizamos el PRECIO (average_cost).
+
       const { data: product } = await supabase
         .from("products")
         .select("current_stock, average_cost, currency")
@@ -82,36 +86,39 @@ export async function createInvoice(data: CreateInvoiceData) {
         .single();
 
       if (product) {
-        const oldStock = Number(product.current_stock || 0);
+        const currentStock = Number(product.current_stock || 0);
         const oldCost = Number(product.average_cost || 0);
         const newQty = Number(item.quantity);
         let newUnitPrice = Number(item.unitPrice);
 
-        // Conversión moneda
+        // Conversión moneda para unificar costos
         if (data.currency === "ARS" && product.currency === "USD") {
           newUnitPrice = newUnitPrice / (data.exchangeRate || 1);
         } else if (data.currency === "USD" && product.currency === "ARS") {
           newUnitPrice = newUnitPrice * (data.exchangeRate || 1);
         }
 
-        // Cálculo PPP
-        const totalStock = oldStock + newQty;
+        // Cálculo PPP (Precio Promedio Ponderado)
+        // Fórmula: ((StockActual * CostoActual) + (CantidadNueva * PrecioNuevo)) / (StockTotal)
+        const totalStock = currentStock + newQty;
         let newAverageCost = oldCost;
+
         if (totalStock > 0) {
           newAverageCost =
-            (oldStock * oldCost + newQty * newUnitPrice) / totalStock;
+            (currentStock * oldCost + newQty * newUnitPrice) / totalStock;
         }
 
+        // ACTUALIZAMOS SOLO EL PRECIO. El stock lo maneja el trigger al insertar en 'movements' abajo.
         await supabase
           .from("products")
           .update({
-            current_stock: totalStock,
             average_cost: newAverageCost,
+            // current_stock: totalStock, <--- ELIMINADO: Conflictivo con Trigger
           })
           .eq("id", item.productId);
       }
 
-      // C. CREAR MOVIMIENTO CON NOMBRE REAL
+      // C. CREAR MOVIMIENTO (Esto dispara el Trigger de Stock)
       const { error: moveError } = await supabase.from("movements").insert({
         type: "IN",
         created_at: new Date().toISOString(),
@@ -120,6 +127,7 @@ export async function createInvoice(data: CreateInvoiceData) {
         description: `Factura ${invoice.invoice_number} - ${item.description}`,
         technician_name: technicianName,
         invoice_id: invoice.id,
+        // user_email: user.email, // Descomentar si usas la columna user_email
       });
 
       if (moveError) console.error("Error creando movimiento:", moveError);

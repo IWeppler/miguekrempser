@@ -5,7 +5,15 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CalendarIcon, Loader2, Plus, Trash2, Sprout } from "lucide-react";
+import {
+  CalendarIcon,
+  Loader2,
+  Plus,
+  Trash2,
+  Sprout,
+  Check,
+  ChevronsUpDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { laborSchema, type LaborSchema } from "../schemas/labor-schema";
 import { createLabor } from "../actions/labor-actions";
@@ -34,8 +42,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/shared/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Calendar } from "@/shared/ui/calendar";
+
+// LISTA PREDEFINIDA (Sugerencias)
+const LABOR_TYPES = [
+  "Pulverización",
+  "Siembra",
+  "Fertilización",
+  "Cosecha",
+  "Monitoreo",
+  "Rolo",
+  "Rastra",
+  "Disco",
+  "Fumigación Aérea",
+];
 
 interface Product {
   id: string;
@@ -51,12 +80,13 @@ interface Props {
 
 export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
   const [open, setOpen] = useState(false);
+  const [openCombobox, setOpenCombobox] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(laborSchema),
     defaultValues: {
-      category: "pulverización",
+      category: "",
       description: "",
       contractor_name: "",
       service_cost_ha: 0,
@@ -71,6 +101,12 @@ export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
 
   const onSubmit = async (values: LaborSchema) => {
     setIsSubmitting(true);
+    if (!values.category) {
+      form.setError("category", { message: "Debes ingresar un tipo de labor" });
+      setIsSubmitting(false);
+      return;
+    }
+
     const result = await createLabor(values, cycleId, lotId);
     setIsSubmitting(false);
 
@@ -140,35 +176,122 @@ export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
                 )}
               />
 
+              {/* CAMBIO AQUÍ: COMBOBOX EDITABLE PARA CATEGORÍA */}
               <FormField
                 control={form.control}
                 name="category"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Tipo de Labor</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="pulverización">
-                          Pulverización
-                        </SelectItem>
-                        <SelectItem value="siembra">Siembra</SelectItem>
-                        <SelectItem value="fertilización">
-                          Fertilización
-                        </SelectItem>
-                        <SelectItem value="cosecha">Cosecha</SelectItem>
-                        <SelectItem value="monitoreo">
-                          Monitoreo / Otros
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openCombobox}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground",
+                            )}
+                          >
+                            {field.value
+                              ? field.value.charAt(0).toUpperCase() +
+                                field.value.slice(1)
+                              : "Seleccionar o escribir..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar labor..." />
+                          <CommandList>
+                            <CommandEmpty className="py-2 px-4 text-sm">
+                              {/* MAGIA AQUÍ: Si no encuentra, ofrece crear */}
+                              <p className="text-muted-foreground mb-2">
+                                No encontrado.
+                              </p>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="w-full h-8"
+                                onClick={() => {
+                                  // Aquí capturamos lo que el usuario escribió en el input de búsqueda
+                                  // Lamentablemente shadcn/cmdk no expone el valor del input directo fácilmente fuera del componente
+                                  // TRUCO: Usamos un input manual si prefiere escribir algo raro
+                                }}
+                              >
+                                Escribir manualmente abajo 👇
+                              </Button>
+                            </CommandEmpty>
+                            <CommandGroup heading="Sugerencias">
+                              {LABOR_TYPES.map((type) => (
+                                <CommandItem
+                                  key={type}
+                                  value={type}
+                                  onSelect={(currentValue) => {
+                                    form.setValue("category", currentValue);
+                                    setOpenCombobox(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      field.value?.toLowerCase() ===
+                                        type.toLowerCase()
+                                        ? "opacity-100"
+                                        : "opacity-0",
+                                    )}
+                                  />
+                                  {type}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                            {/* OPCIÓN DE ESCRITURA LIBRE DENTRO DEL POPOVER */}
+                            <div className="p-2 border-t border-border">
+                              <p className="text-[10px] text-muted-foreground mb-1 ml-1">
+                                ¿Otro nombre?
+                              </p>
+                              <div className="flex gap-2">
+                                <Input
+                                  placeholder="Ej: Cartidor..."
+                                  className="h-8 text-xs"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const val = e.currentTarget.value;
+                                      if (val) {
+                                        form.setValue("category", val);
+                                        setOpenCombobox(false);
+                                      }
+                                    }
+                                  }}
+                                  onChange={(e) => {}}
+                                  id="custom-labor-input"
+                                />
+                                <Button
+                                  size="sm"
+                                  type="button"
+                                  className="h-8 px-2"
+                                  onClick={() => {
+                                    const input = document.getElementById(
+                                      "custom-labor-input",
+                                    ) as HTMLInputElement;
+                                    if (input && input.value) {
+                                      form.setValue("category", input.value);
+                                      setOpenCombobox(false);
+                                    }
+                                  }}
+                                >
+                                  Usar
+                                </Button>
+                              </div>
+                            </div>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -180,10 +303,10 @@ export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descripción</FormLabel>
+                  <FormLabel>Descripción / Detalles</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Ej: Barbecho Largo, Aplicación Fungicida..."
+                      placeholder="Ej: Lote 4 Norte - Aplicación pre-emergente"
                       {...field}
                     />
                   </FormControl>
@@ -195,7 +318,7 @@ export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
             {/* 2. COSTOS DE SERVICIO */}
             <div className="p-3 bg-muted/30 rounded-lg border border-border">
               <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                Costo de Servicio
+                Costo de Servicio / Contratista
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -241,11 +364,11 @@ export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
               </div>
             </div>
 
-            {/* 3. INSUMOS (RECETA) */}
+            {/* 3. INSUMOS (RECETA) - Igual que antes */}
             <div className="p-3 bg-green-50/50 dark:bg-green-900/10 rounded-lg border border-green-200/50 dark:border-green-800/30">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold flex items-center gap-2">
-                  Insumos
+                  Insumos Utilizados
                 </h4>
                 <Button
                   type="button"
@@ -366,13 +489,12 @@ export function CreateLaborDialog({ cycleId, lotId, products }: Props) {
                     />
                   </div>
 
-                  {/* COLUMNA 4: BORRAR (1/12) - ALINEADO */}
+                  {/* COLUMNA 4: BORRAR (1/12) */}
                   <div className="col-span-1 flex justify-center">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      // Ajuste: h-8 w-8 para igualar la altura exacta del input
                       className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-100"
                       onClick={() => remove(index)}
                     >

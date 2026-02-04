@@ -10,6 +10,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { invoiceSchema, type InvoiceSchema } from "../schemas/invoice-schema";
 import { createInvoice } from "@/features/finance/actions/create-invoice";
+import { createProduct } from "@/features/stock/actions/create-product";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/shared/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+
 import { Calendar } from "@/shared/ui/calendar";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import {
@@ -52,6 +62,8 @@ import {
   UploadCloud,
   FileIcon,
   X,
+  ChevronsUpDown,
+  Check,
 } from "lucide-react";
 import { useDolar } from "@/shared/hooks/use-dolar";
 import { createClient } from "@/lib/supabase/client";
@@ -69,8 +81,11 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [openProductCombo, setOpenProductCombo] = useState<number | null>(null);
+  const [comboSearchValue, setComboSearchValue] = useState("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { oficial, loading: loadingRate } = useDolar();
 
@@ -79,7 +94,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
     defaultValues: {
       currency: "USD",
       exchangeRate: 1,
-      items: [{ description: "", quantity: 1, unitPrice: 0 }],
+      items: [{ description: "", quantity: 1, unitPrice: 0, productId: "" }],
       invoiceNumber: "",
       newSupplierName: "",
       description: "",
@@ -120,8 +135,47 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
     setSubmitSuccess(false);
 
     try {
-      let fileUrl = null;
+      const processedItems = await Promise.all(
+        values.items.map(async (item) => {
+          const existingProduct = products.find((p) => p.id === item.productId);
 
+          if (!existingProduct && item.productId) {
+            console.log("Creando producto nuevo:", item.productId);
+
+            const newProductResult = await createProduct({
+              name: item.productId,
+              category: "Insumos Varios",
+              unit: "Unidad",
+              currentStock: 0,
+              minStockAlert: 0,
+              description: "Alta automática desde Factura",
+              averageCost: Number(item.unitPrice) || 0,
+            });
+
+            if (newProductResult.error) {
+              throw new Error(
+                `Error al crear producto "${item.productId}": ${newProductResult.error}`,
+              );
+            }
+
+            if (!newProductResult.data) {
+              throw new Error("Error desconocido al crear producto");
+            }
+
+            return {
+              ...item,
+              productId: newProductResult.data.id,
+            };
+          }
+
+          return item;
+        }),
+      );
+
+      const valuesWithRealIds = { ...values, items: processedItems };
+
+      // 2. SUBIR ARCHIVO
+      let fileUrl = null;
       if (file) {
         setIsUploading(true);
         const fileExt = file.name.split(".").pop();
@@ -145,7 +199,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
         setIsUploading(false);
       }
 
-      const payload = { ...values, fileUrl };
+      const payload = { ...valuesWithRealIds, fileUrl };
       const result = await createInvoice(payload);
 
       if (result.error) {
@@ -186,9 +240,9 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* 1. ENCABEZADO (Proveedor, Nro, Fecha, Moneda) */}
+            {/* SECCIÓN 1: DATOS GENERALES */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
-              {/* Proveedor (Col 1-12 en móvil, 1-4 en desktop) */}
+              {/* Proveedor */}
               <div className="col-span-1 md:col-span-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <FormLabel>Proveedor</FormLabel>
@@ -253,7 +307,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                 )}
               </div>
 
-              {/* Nro Factura (Col 1-12 en móvil, 5-7 en desktop) */}
+              {/* Nro Factura */}
               <div className="col-span-1 md:col-span-3">
                 <FormField
                   control={form.control}
@@ -274,7 +328,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                 />
               </div>
 
-              {/* Fecha (Col 1-12 en móvil, 8-10 en desktop) */}
+              {/* Fecha */}
               <div className="col-span-1 md:col-span-3">
                 <FormField
                   control={form.control}
@@ -316,7 +370,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                 />
               </div>
 
-              {/* Moneda (Col 1-12 en móvil, 11-12 en desktop) */}
+              {/* Moneda */}
               <div className="col-span-1 md:col-span-2">
                 <FormField
                   control={form.control}
@@ -344,7 +398,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </div>
             </div>
 
-            {/* COTIZACIÓN (Solo si es ARS) */}
+            {/* Cotización ARS */}
             {currency === "ARS" && (
               <div className="flex flex-col md:flex-row items-start md:items-center gap-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md animate-in fade-in slide-in-from-top-1">
                 <div className="flex items-center gap-2">
@@ -395,7 +449,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </div>
             )}
 
-            {/* COMPROBANTE DIGITAL */}
+            {/* Upload File */}
             <div className="p-4 bg-muted/30 rounded-lg border border-border border-dashed">
               <div className="flex flex-col gap-3">
                 <FormLabel>Comprobante Digital (Foto/PDF)</FormLabel>
@@ -450,7 +504,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </div>
             </div>
 
-            {/* 2. DETALLE DE ÍTEMS (Tabla Dinámica - Adaptada para móvil) */}
+            {/* SECCIÓN 2: ÍTEMS DE FACTURA */}
             <div className="space-y-4">
               <div className="flex justify-between items-center text-sm font-semibold text-foreground">
                 <span>Detalle de Productos</span>
@@ -468,7 +522,6 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </div>
 
               <div className="space-y-4 md:space-y-0 md:rounded-md md:border md:border-border md:overflow-hidden">
-                {/* Encabezado de tabla solo en desktop */}
                 <div className="hidden md:grid md:grid-cols-12 bg-muted text-muted-foreground font-medium text-sm border-b border-border">
                   <div className="col-span-4 px-3 py-2">Producto (Stock)</div>
                   <div className="col-span-4 px-3 py-2">
@@ -484,7 +537,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                     key={field.id}
                     className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-0 p-4 md:p-0 bg-card border border-border rounded-lg md:rounded-none md:border-0 md:border-b md:border-border last:border-0 relative hover:bg-muted/50 transition-colors items-start md:items-center"
                   >
-                    {/* Botón eliminar en móvil (arriba a la derecha) */}
+                    {/* Botón eliminar móvil */}
                     <div className="absolute top-2 right-2 md:hidden">
                       {fields.length > 1 && (
                         <Button
@@ -499,7 +552,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                       )}
                     </div>
 
-                    {/* SELECTOR PRODUCTO */}
+                    {/* COMBOBOX PRODUCTO */}
                     <div className="md:col-span-4 md:p-2 md:align-top">
                       <FormField
                         control={form.control}
@@ -509,57 +562,158 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                             <FormLabel className="md:hidden text-xs">
                               Producto
                             </FormLabel>
-                            <Select
-                              onValueChange={(val) => {
-                                field.onChange(val);
-                                const prod = products.find((p) => p.id === val);
-                                const currentDesc = form.getValues(
-                                  `items.${index}.description`,
-                                );
-                                if (prod && !currentDesc) {
-                                  form.setValue(
-                                    `items.${index}.description`,
-                                    prod.name,
-                                  );
-                                }
+                            <Popover
+                              open={openProductCombo === index}
+                              onOpenChange={(isOpen) => {
+                                setOpenProductCombo(isOpen ? index : null);
+                                if (!isOpen) setComboSearchValue(""); // Limpiar al cerrar
                               }}
-                              value={field.value}
                             >
-                              <FormControl>
-                                <SelectTrigger className="h-9 text-xs border-input bg-background w-full">
-                                  <SelectValue placeholder="Seleccionar (opcional)" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {products.map((p) => (
-                                  <SelectItem key={p.id} value={p.id}>
-                                    {p.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                      "w-full justify-between h-9 text-xs",
+                                      !field.value && "text-muted-foreground",
+                                    )}
+                                  >
+                                    {/* Lógica de visualización: ID -> Nombre o Texto Directo */}
+                                    {field.value
+                                      ? products.find(
+                                          (p) => p.id === field.value,
+                                        )?.name || field.value
+                                      : "Seleccionar o crear..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-[300px] p-0"
+                                align="start"
+                              >
+                                <Command shouldFilter={false}>
+                                  {" "}
+                                  {/* <--- CLAVE: Desactivar filtro automático */}
+                                  <CommandInput
+                                    placeholder="Buscar insumo..."
+                                    value={comboSearchValue}
+                                    onValueChange={setComboSearchValue} // Controlamos el input
+                                  />
+                                  <CommandList>
+                                    {/* LISTA FILTRADA MANUALMENTE */}
+                                    {products
+                                      .filter((p) =>
+                                        p.name
+                                          .toLowerCase()
+                                          .includes(
+                                            comboSearchValue.toLowerCase(),
+                                          ),
+                                      )
+                                      .map((product) => (
+                                        <CommandItem
+                                          value={product.name}
+                                          key={product.id}
+                                          onSelect={() => {
+                                            field.onChange(product.id); // Guardamos ID existente
+
+                                            // Autocompletar descripción si está vacía
+                                            const currentDesc = form.getValues(
+                                              `items.${index}.description`,
+                                            );
+                                            if (!currentDesc) {
+                                              form.setValue(
+                                                `items.${index}.description`,
+                                                product.name,
+                                              );
+                                            }
+                                            setOpenProductCombo(null);
+                                            setComboSearchValue("");
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              product.id === field.value
+                                                ? "opacity-100"
+                                                : "opacity-0",
+                                            )}
+                                          />
+                                          {product.name}
+                                        </CommandItem>
+                                      ))}
+
+                                    {/* OPCIÓN DE CREAR NUEVO (Si no hay coincidencia exacta o si quiere forzarlo) */}
+                                    {comboSearchValue &&
+                                      !products.some(
+                                        (p) =>
+                                          p.name.toLowerCase() ===
+                                          comboSearchValue.toLowerCase(),
+                                      ) && (
+                                        <CommandGroup>
+                                          <div className="p-2">
+                                            <p className="text-[10px] text-muted-foreground mb-1">
+                                              No existe &quot;{comboSearchValue}
+                                              &quot;.
+                                            </p>
+                                            <Button
+                                              size="sm"
+                                              className="w-full h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                                              onClick={() => {
+                                                // GUARDAMOS EL NOMBRE NUEVO
+                                                field.onChange(
+                                                  comboSearchValue,
+                                                );
+
+                                                // Autocompletar descripción
+                                                const currentDesc =
+                                                  form.getValues(
+                                                    `items.${index}.description`,
+                                                  );
+                                                if (!currentDesc) {
+                                                  form.setValue(
+                                                    `items.${index}.description`,
+                                                    comboSearchValue,
+                                                  );
+                                                }
+                                                setOpenProductCombo(null);
+                                                setComboSearchValue("");
+                                              }}
+                                            >
+                                              <Plus className="mr-1 h-3 w-3" />
+                                              Crear &quot;{comboSearchValue}
+                                              &quot;
+                                            </Button>
+                                          </div>
+                                        </CommandGroup>
+                                      )}
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </FormItem>
                         )}
                       />
                     </div>
 
-                    {/* DESCRIPCION */}
+                    {/* Descripción */}
                     <div className="md:col-span-4 md:p-2 md:align-top">
                       <FormLabel className="md:hidden text-xs">
                         Descripción
                       </FormLabel>
                       <Input
                         {...form.register(`items.${index}.description`)}
-                        placeholder="Detalle del ítem..."
+                        placeholder="Detalle..."
                         className="h-9 text-xs border-input bg-background w-full"
                       />
                     </div>
 
+                    {/* Cantidad y Precio */}
                     <div className="grid grid-cols-2 gap-3 md:contents">
-                      {/* CANTIDAD */}
                       <div className="md:col-span-1 md:p-2 md:align-top">
                         <FormLabel className="md:hidden text-xs">
-                          Cantidad
+                          Cant.
                         </FormLabel>
                         <Input
                           type="number"
@@ -568,11 +722,9 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                           className="h-9 text-xs md:text-right border-input bg-background w-full"
                         />
                       </div>
-
-                      {/* PRECIO UNITARIO */}
                       <div className="md:col-span-2 md:p-2 md:align-top">
                         <FormLabel className="md:hidden text-xs">
-                          Precio Unit.
+                          Precio
                         </FormLabel>
                         <Input
                           type="number"
@@ -583,7 +735,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                       </div>
                     </div>
 
-                    {/* ELIMINAR (Desktop) */}
+                    {/* Eliminar Desktop */}
                     <div className="hidden md:block md:col-span-1 md:p-2 md:text-right md:align-top">
                       {fields.length > 1 && (
                         <Button
@@ -602,7 +754,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </div>
             </div>
 
-            {/* 3. TOTALES */}
+            {/* TOTALES */}
             <div className="flex justify-end pt-4 border-t border-border">
               <div className="w-full md:w-72 space-y-3 bg-muted/20 p-4 rounded-lg border border-border">
                 <div className="flex justify-between items-center text-lg font-bold text-foreground">
@@ -634,7 +786,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </div>
             </div>
 
-            {/* BOTONES ACCIÓN */}
+            {/* FOOTER */}
             <div className="flex flex-col-reverse md:flex-row justify-end gap-3 pt-2">
               <Button
                 type="button"
@@ -658,7 +810,6 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
               </Button>
             </div>
 
-            {/* ALERTA ERROR */}
             {submitError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
