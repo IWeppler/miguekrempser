@@ -7,6 +7,7 @@ export interface Invoice {
   due_date: string;
   file_url?: string | null;
   suppliers: {
+    id: string;
     name: string;
   } | null;
 }

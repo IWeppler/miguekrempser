@@ -15,7 +15,7 @@ import { type Invoice } from "@/features/finance/types";
 
 // TIPOS DE ENTRADA (RAW DB RESPONSE)
 type RawProductJoin = { name: string; category: string };
-type RawSupplierJoin = { name: string };
+type RawSupplierJoin = { id: string; name: string };
 
 type RawMovementData = {
   id: string;
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
     supabase
       .from("invoices")
       .select(
-        "id, invoice_number, amount_total, currency, status, due_date, suppliers(name)",
+        "id, invoice_number, amount_total, currency, status, due_date, suppliers(id, name)",
       )
       .eq("status", "pending"),
   ]);
@@ -90,7 +90,8 @@ export default async function DashboardPage() {
 
   const rawInvoices = (invoicesRes.data || []) as unknown as RawInvoiceData[];
   const invoices: Invoice[] = rawInvoices.map((inv) => {
-    let supplierData: { name: string } | null = null;
+    let supplierData: { id: string; name: string } | null = null;
+
     if (Array.isArray(inv.suppliers)) {
       if (inv.suppliers.length > 0) supplierData = inv.suppliers[0];
     } else if (inv.suppliers) {

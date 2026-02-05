@@ -9,7 +9,6 @@ type CreateInvoiceData = InvoiceSchema & { fileUrl?: string | null };
 export async function createInvoice(data: CreateInvoiceData) {
   const supabase = await createClient();
 
-  
   // 1. OBTENER USUARIO ACTUAL
   const {
     data: { user },
@@ -47,6 +46,7 @@ export async function createInvoice(data: CreateInvoiceData) {
       .insert({
         invoice_number: data.invoiceNumber,
         supplier_id: supplierId,
+        purchaser_company: data.purchaserCompany,
         date: new Date().toISOString(),
         due_date: data.dueDate.toISOString(),
         currency: data.currency,

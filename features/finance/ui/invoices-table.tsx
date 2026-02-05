@@ -14,17 +14,43 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
   Search,
-  FileText,
-  Eye,
+  Pencil,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  MoreVertical,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Eye,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/ui/alert-dialog";
+
 import { CreateInvoiceDialog } from "./create-invoice-dialog";
 import { InvoiceDetailDialog } from "./invoice-detail-dialog";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Invoice } from "../types";
+import { updateInvoiceStatus } from "../actions/update-invoice-status";
+import { deleteInvoice } from "../actions/delete-invoice";
+import { updateInvoice } from "../actions/update-invoice";
+import { EditInvoiceDialog } from "./edit-invoice-dialog";
 
 type SortField =
   | "invoice_number"
@@ -40,35 +66,45 @@ interface Props {
   initialInvoices: Invoice[];
 }
 
-// --- COMPONENTE HELPER EXTRAÍDO (Solución al error) ---
+interface SortIconProps {
+  field: SortField;
+  currentSortField: SortField;
+  sortDirection: SortDirection;
+}
+
 const SortIcon = ({
   field,
   currentSortField,
   sortDirection,
-}: {
-  field: SortField;
-  currentSortField: SortField;
-  sortDirection: SortDirection;
-}) => {
-  if (currentSortField !== field) {
+}: SortIconProps) => {
+  if (currentSortField !== field)
     return <ArrowUpDown className="ml-2 h-3 w-3 text-muted-foreground/50" />;
-  }
   return sortDirection === "asc" ? (
-    <ArrowUp className="ml-2 h-3 w-3 text-foreground" />
+    <ArrowUp className="ml-2 h-3 w-3" />
   ) : (
-    <ArrowDown className="ml-2 h-3 w-3 text-foreground" />
+    <ArrowDown className="ml-2 h-3 w-3" />
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<SortField>("due_date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [invoiceToEdit, setInvoiceToEdit] = useState<Invoice | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Estado para Detalles
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("due_date");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  // Filtro en cliente
+  // Estado para Eliminar
+  const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Estado para Actualizar Status
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+
+  // Filtros y Ordenamiento
   const filteredInvoices = initialInvoices.filter((inv) => {
     const term = searchTerm.toLowerCase();
     const supplierName = inv.suppliers?.name?.toLowerCase() || "";
@@ -76,10 +112,8 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
     return supplierName.includes(term) || number.includes(term);
   });
 
-  // Ordenamiento
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     const multiplier = sortDirection === "asc" ? 1 : -1;
-
     switch (sortField) {
       case "invoice_number":
         return (
@@ -87,9 +121,10 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
           multiplier
         );
       case "supplier":
-        const nameA = a.suppliers?.name || "";
-        const nameB = b.suppliers?.name || "";
-        return nameA.localeCompare(nameB) * multiplier;
+        return (
+          (a.suppliers?.name || "").localeCompare(b.suppliers?.name || "") *
+          multiplier
+        );
       case "due_date":
         return (
           (new Date(a.due_date).getTime() - new Date(b.due_date).getTime()) *
@@ -113,50 +148,122 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
     }
   };
 
+  // Función para abrir el modal de detalles
   const handleViewDetails = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setDetailOpen(true);
   };
 
+  const handleDelete = async () => {
+    if (!invoiceToDelete) return;
+    setIsDeleting(true);
+    const result = await deleteInvoice(invoiceToDelete.id);
+    setIsDeleting(false);
+    setInvoiceToDelete(null);
+    if (!result.success) {
+      alert("Error al eliminar: " + result.error);
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    setIsUpdatingStatus(id);
+    await updateInvoiceStatus(id, newStatus);
+    setIsUpdatingStatus(null);
+  };
+
+  const handleEdit = (invoice: Invoice) => {
+    setInvoiceToEdit(invoice);
+    setIsEditOpen(true);
+  };
+
   return (
     <div className="space-y-4">
-      {/* DETAIL DIALOG */}
       <InvoiceDetailDialog
         invoice={selectedInvoice}
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
 
-      {/* BARRA DE HERRAMIENTAS OPTIMIZADA */}
-      <div className="flex flex-row gap-3 items-center bg-card p-3 rounded-lg border border-border shadow-sm">
-        {/* BUSCADOR */}
-        <div className="relative flex-1">
+      <EditInvoiceDialog
+        invoice={invoiceToEdit}
+        open={isEditOpen}
+        onOpenChange={(open) => {
+          setIsEditOpen(open);
+          if (!open) setInvoiceToEdit(null);
+        }}
+        products={products}
+        suppliers={suppliers}
+      />
+
+      {/* MODAL CONFIRMACIÓN DE BORRADO */}
+      <AlertDialog
+        open={!!invoiceToDelete}
+        onOpenChange={(open) => !open && setInvoiceToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará la factura{" "}
+              <b>{invoiceToDelete?.invoice_number}</b> y revertirá el stock
+              asociado. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {/* Agregamos variant="outline" y size="default" (o "sm") explícitamente */}
+            <AlertDialogCancel
+              disabled={isDeleting}
+              variant="outline"
+              size="default"
+            >
+              Cancelar
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              variant="destructive"
+              size="default"
+            >
+              {isDeleting ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* HEADER TOOLS */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-card p-3 rounded-lg border border-border shadow-sm">
+        <div className="relative flex-1 basis-0">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar..."
+            placeholder="Buscar por proveedor o número..."
             className="pl-9 h-10 bg-background border-input w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        {/* BOTÓN DE ACCIÓN (No se estira, ocupa lo justo) */}
-        <div className="flex-none">
+        {/* El contenedor del botón se mantiene igual */}
+        <div className="flex-none w-full sm:w-auto">
           <CreateInvoiceDialog products={products} suppliers={suppliers} />
         </div>
       </div>
 
-      {/* TABLA */}
+      {/* TABLE */}
       <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
-            <TableRow className="border-border hover:bg-transparent">
+            <TableRow>
               <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort("invoice_number")}
+                className="cursor-pointer"
               >
                 <div className="flex items-center">
-                  Nro. Factura{" "}
+                  Nro{" "}
                   <SortIcon
                     field="invoice_number"
                     currentSortField={sortField}
@@ -165,8 +272,8 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                 </div>
               </TableHead>
               <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort("supplier")}
+                className="cursor-pointer"
               >
                 <div className="flex items-center">
                   Proveedor{" "}
@@ -178,11 +285,11 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                 </div>
               </TableHead>
               <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort("due_date")}
+                className="cursor-pointer"
               >
                 <div className="flex items-center">
-                  Vencimiento{" "}
+                  Fecha{" "}
                   <SortIcon
                     field="due_date"
                     currentSortField={sortField}
@@ -191,8 +298,8 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                 </div>
               </TableHead>
               <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort("status")}
+                className="cursor-pointer"
               >
                 <div className="flex items-center">
                   Estado{" "}
@@ -204,8 +311,8 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                 </div>
               </TableHead>
               <TableHead
-                className="text-right cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort("amount")}
+                className="cursor-pointer text-right"
               >
                 <div className="flex items-center justify-end">
                   Monto{" "}
@@ -216,77 +323,121 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                   />
                 </div>
               </TableHead>
-              <TableHead></TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedInvoices.length > 0 ? (
               sortedInvoices.map((inv) => (
-                <TableRow
-                  key={inv.id}
-                  className="border-border hover:bg-muted/50"
-                >
-                  <TableCell className="font-medium text-foreground">
+                <TableRow key={inv.id} className="hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    {/* Hacemos clickable el número también */}
                     <button
                       onClick={() => handleViewDetails(inv)}
-                      className="hover:underline hover:text-primary focus:outline-none text-left"
+                      className="hover:underline"
                     >
                       {inv.invoice_number}
                     </button>
                   </TableCell>
-                  <TableCell className="text-foreground">
-                    {inv.suppliers?.name || "Desconocido"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell>{inv.suppliers?.name || "-"}</TableCell>
+                  <TableCell>
                     {inv.due_date
-                      ? format(new Date(inv.due_date), "dd MMM yyyy", {
-                          locale: es,
-                        })
+                      ? format(new Date(inv.due_date), "dd/MM/yy")
                       : "-"}
                   </TableCell>
                   <TableCell>
-                    {inv.status === "paid" && (
-                      <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-transparent">
-                        Pagado
-                      </Badge>
-                    )}
-                    {inv.status === "pending" && (
-                      <Badge className="bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 border-transparent">
-                        Pendiente
-                      </Badge>
-                    )}
-                    {inv.status === "overdue" && (
-                      <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/20 border-transparent">
-                        Vencido
+                    {isUpdatingStatus === inv.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <Badge
+                        className={`
+                                cursor-pointer select-none
+                                ${inv.status === "paid" ? "bg-green-100 text-green-700 hover:bg-green-200" : ""}
+                                ${inv.status === "pending" ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200" : ""}
+                                ${inv.status === "overdue" ? "bg-red-100 text-red-700 hover:bg-red-200" : ""}
+                            `}
+                        onClick={() =>
+                          handleStatusChange(
+                            inv.id,
+                            inv.status === "paid" ? "pending" : "paid",
+                          )
+                        }
+                      >
+                        {inv.status === "paid"
+                          ? "Pagado"
+                          : inv.status === "pending"
+                            ? "Pendiente"
+                            : inv.status}
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-foreground">
-                    {inv.currency === "USD" ? "USD" : "$"}{" "}
-                    {inv.amount_total?.toLocaleString()}
+                  <TableCell className="text-right font-mono">
+                    {inv.currency === "USD" ? "u$s" : "$"}{" "}
+                    {inv.amount_total?.toLocaleString("es-AR", {
+                      minimumFractionDigits: 2,
+                    })}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewDetails(inv)}
-                      className="text-primary hover:text-primary/80 hover:bg-primary/10"
-                    >
-                      <Eye className="mr-2 h-4 w-4" /> Ver Detalles
-                    </Button>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Menú de Acciones */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              navigator.clipboard.writeText(inv.invoice_number)
+                            }
+                          >
+                            Copiar Nro
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={() => handleViewDetails(inv)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" /> Ver Detalles
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem onClick={() => handleEdit(inv)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleStatusChange(inv.id, "paid")}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4 text-green-600" />{" "}
+                            Marcar Pagado
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleStatusChange(inv.id, "pending")
+                            }
+                          >
+                            <XCircle className="mr-2 h-4 w-4 text-yellow-600" />{" "}
+                            Marcar Pendiente
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setInvoiceToDelete(inv)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-32 text-center text-muted-foreground"
-                >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <FileText className="h-8 w-8 text-muted-foreground/50" />
-                    <p>No se encontraron facturas.</p>
-                  </div>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  Sin resultados.
                 </TableCell>
               </TableRow>
             )}

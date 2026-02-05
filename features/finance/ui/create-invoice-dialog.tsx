@@ -41,7 +41,6 @@ import {
 } from "@/shared/ui/select";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -73,6 +72,14 @@ interface Props {
   suppliers: { id: string; name: string }[];
 }
 
+const COMPANIES = [
+  "EL TOLAR SA",
+  "APAT SRL",
+  "HAIFA CEREALES SRL ",
+  "3 AGRO SRL",
+  "LA ANGELINA SRL",
+];
+
 export function CreateInvoiceDialog({ products, suppliers }: Props) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +106,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
       newSupplierName: "",
       description: "",
       supplierId: undefined,
+      purchaserCompany: "EL TOLAR SA",
     },
   });
 
@@ -241,7 +249,7 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* SECCIÓN 1: DATOS GENERALES */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 ...">
               {/* Proveedor */}
               <div className="col-span-1 md:col-span-4 space-y-2">
                 <div className="flex items-center justify-between">
@@ -306,7 +314,36 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                   />
                 )}
               </div>
-
+              {/* EMPRESA COMPRADORA */}
+              <div className="col-span-1 md:col-span-4">
+                <FormField
+                  control={form.control}
+                  name="purchaserCompany"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Facturado a nombre de</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Seleccionar empresa" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {COMPANIES.map((company) => (
+                            <SelectItem key={company} value={company}>
+                              {company}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               {/* Nro Factura */}
               <div className="col-span-1 md:col-span-3">
                 <FormField
@@ -327,7 +364,6 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                   )}
                 />
               </div>
-
               {/* Fecha */}
               <div className="col-span-1 md:col-span-3">
                 <FormField
@@ -369,7 +405,6 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
                   )}
                 />
               </div>
-
               {/* Moneda */}
               <div className="col-span-1 md:col-span-2">
                 <FormField

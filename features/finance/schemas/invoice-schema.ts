@@ -12,6 +12,7 @@ export const invoiceSchema = z.object({
   // Encabezado
   supplierId: z.string().optional(),
   newSupplierName: z.string().optional(),
+  purchaserCompany: z.string().min(1, "Debes seleccionar una empresa"),
   invoiceNumber: z.string().min(1, "El número es requerido"),
   dueDate: z.date({ message: "Fecha requerida" }),
 
