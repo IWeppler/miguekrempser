@@ -49,15 +49,17 @@ import { format } from "date-fns";
 import { Invoice } from "../types";
 import { updateInvoiceStatus } from "../actions/update-invoice-status";
 import { deleteInvoice } from "../actions/delete-invoice";
-import { updateInvoice } from "../actions/update-invoice";
 import { EditInvoiceDialog } from "./edit-invoice-dialog";
 
+// 1. Tipado estricto para los campos de ordenamiento
 type SortField =
   | "invoice_number"
   | "supplier"
+  | "purchaser_company" // <--- NUEVO CAMPO
   | "due_date"
   | "status"
   | "amount";
+
 type SortDirection = "asc" | "desc";
 
 interface Props {
@@ -109,7 +111,13 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
     const term = searchTerm.toLowerCase();
     const supplierName = inv.suppliers?.name?.toLowerCase() || "";
     const number = inv.invoice_number?.toLowerCase() || "";
-    return supplierName.includes(term) || number.includes(term);
+    const company = inv.purchaser_company?.toLowerCase() || ""; // Búsqueda también por empresa
+
+    return (
+      supplierName.includes(term) ||
+      number.includes(term) ||
+      company.includes(term)
+    );
   });
 
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
@@ -123,6 +131,12 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
       case "supplier":
         return (
           (a.suppliers?.name || "").localeCompare(b.suppliers?.name || "") *
+          multiplier
+        );
+      // 2. Lógica de ordenamiento para Empresa
+      case "purchaser_company":
+        return (
+          (a.purchaser_company || "").localeCompare(b.purchaser_company || "") *
           multiplier
         );
       case "due_date":
@@ -148,7 +162,6 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
     }
   };
 
-  // Función para abrir el modal de detalles
   const handleViewDetails = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
     setDetailOpen(true);
@@ -210,7 +223,6 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            {/* Agregamos variant="outline" y size="default" (o "sm") explícitamente */}
             <AlertDialogCancel
               disabled={isDeleting}
               variant="outline"
@@ -237,17 +249,16 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
 
       {/* HEADER TOOLS */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-card p-3 rounded-lg border border-border shadow-sm">
-        <div className="relative flex-1 basis-0">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por proveedor o número..."
+            placeholder="Buscar por proveedor, empresa o número..."
             className="pl-9 h-10 bg-background border-input w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        {/* El contenedor del botón se mantiene igual */}
         <div className="flex-none w-full sm:w-auto">
           <CreateInvoiceDialog products={products} suppliers={suppliers} />
         </div>
@@ -284,6 +295,22 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                   />
                 </div>
               </TableHead>
+
+              {/* 3. Columna Empresa */}
+              <TableHead
+                onClick={() => handleSort("purchaser_company")}
+                className="cursor-pointer hidden md:table-cell"
+              >
+                <div className="flex items-center">
+                  Empresa{" "}
+                  <SortIcon
+                    field="purchaser_company"
+                    currentSortField={sortField}
+                    sortDirection={sortDirection}
+                  />
+                </div>
+              </TableHead>
+
               <TableHead
                 onClick={() => handleSort("due_date")}
                 className="cursor-pointer"
@@ -331,7 +358,6 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
               sortedInvoices.map((inv) => (
                 <TableRow key={inv.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">
-                    {/* Hacemos clickable el número también */}
                     <button
                       onClick={() => handleViewDetails(inv)}
                       className="hover:underline"
@@ -339,7 +365,14 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                       {inv.invoice_number}
                     </button>
                   </TableCell>
+
                   <TableCell>{inv.suppliers?.name || "-"}</TableCell>
+
+                  {/* 4. Celda de Empresa */}
+                  <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+                    {inv.purchaser_company || "-"}
+                  </TableCell>
+
                   <TableCell>
                     {inv.due_date
                       ? format(new Date(inv.due_date), "dd/MM/yy")
@@ -379,7 +412,6 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
-                      {/* Menú de Acciones */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
@@ -436,7 +468,7 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Sin resultados.
                 </TableCell>
               </TableRow>

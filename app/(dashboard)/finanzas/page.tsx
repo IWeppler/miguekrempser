@@ -4,8 +4,23 @@ import { startOfMonth, endOfMonth } from "date-fns";
 import { FinanceStats } from "@/features/finance/ui/finance-stats";
 import { Invoice } from "@/features/finance/types";
 
-const getAmount = (inv: Invoice) =>
-  Number(inv.amount_total ?? inv.amount_total ?? 0);
+// TIPOS PARA LA RESPUESTA DE SUPABASE (RAW DATA)
+type RawSupplier = { id: string; name: string };
+
+interface RawInvoice {
+  id: string;
+  invoice_number: string;
+  amount_total: number | null;
+  currency: string;
+  status: string;
+  due_date: string;
+  purchaser_company: string | null;
+  file_url: string | null;
+  // Supabase puede devolver un objeto o un array dependiendo de la relación
+  suppliers: RawSupplier | RawSupplier[] | null;
+}
+
+const getAmount = (inv: Invoice) => Number(inv.amount_total ?? 0);
 
 export default async function FinanzasPage() {
   const supabase = await createClient();
@@ -15,20 +30,44 @@ export default async function FinanzasPage() {
     supabase.from("products").select("id, name"),
     supabase
       .from("invoices")
-      .select("*, suppliers(name)")
+      .select("*, suppliers(id, name)") // Traemos ID y Nombre
       .order("due_date", { ascending: true }),
     supabase.from("suppliers").select("id, name").order("name"),
   ]);
 
   const products = productsRes.data || [];
-  const rawInvoices = (invoicesRes.data as Invoice[]) || [];
   const suppliers = suppliersRes.data || [];
 
   // 2. Preparar datos limpios para la Tabla
-  const tableInvoices = rawInvoices.map((inv) => ({
-    ...inv,
-    amount: getAmount(inv),
-  }));
+  // Casteamos la data cruda a nuestra interfaz RawInvoice[]
+  const rawData = (invoicesRes.data || []) as unknown as RawInvoice[];
+
+  const tableInvoices: Invoice[] = rawData.map((inv) => {
+    // Normalizamos supplier por si Supabase lo devuelve como array o null
+    let supplierData: { id: string; name: string } | null = null;
+
+    if (inv.suppliers) {
+      if (Array.isArray(inv.suppliers)) {
+        // Si es array, tomamos el primero
+        supplierData = inv.suppliers[0] || null;
+      } else {
+        // Si es objeto, lo usamos directo
+        supplierData = inv.suppliers;
+      }
+    }
+
+    return {
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      amount_total: inv.amount_total ?? 0,
+      currency: inv.currency,
+      status: inv.status,
+      due_date: inv.due_date,
+      file_url: inv.file_url,
+      suppliers: supplierData,
+      purchaser_company: inv.purchaser_company,
+    };
+  });
 
   // Helper para sumar
   const sumByCurrency = (invoiceList: Invoice[]) => {
@@ -51,18 +90,20 @@ export default async function FinanzasPage() {
   const currentMonthStart = startOfMonth(now);
   const currentMonthEnd = endOfMonth(now);
 
-  const pendingInvoices = rawInvoices.filter(
+  const pendingInvoices = tableInvoices.filter(
     (inv) => inv.status === "pending" || inv.status === "overdue",
   );
 
-  const dueThisMonthInvoices = rawInvoices.filter((inv) => {
+  const dueThisMonthInvoices = tableInvoices.filter((inv) => {
     if (inv.status === "paid") return false;
     const dueDate = new Date(inv.due_date);
     return dueDate >= currentMonthStart && dueDate <= currentMonthEnd;
   });
 
-  const overdueInvoices = rawInvoices.filter((inv) => inv.status === "overdue");
-  const paidInvoices = rawInvoices.filter((inv) => inv.status === "paid");
+  const overdueInvoices = tableInvoices.filter(
+    (inv) => inv.status === "overdue",
+  );
+  const paidInvoices = tableInvoices.filter((inv) => inv.status === "paid");
 
   // Pasamos los objetos {ARS, USD} puros al componente cliente
   const totalDebt = sumByCurrency(pendingInvoices);

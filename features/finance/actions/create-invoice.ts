@@ -63,8 +63,9 @@ export async function createInvoice(data: CreateInvoiceData) {
       throw new Error("Error al crear factura: " + invoiceError.message);
 
     // 5. PROCESAR ÍTEMS
-    const itemsPromises = data.items.map(async (item) => {
-      // A. Ítem de factura (Registro Financiero)
+    for (const item of data.items) {
+      
+      // A. Ítem de factura
       const { error: itemError } = await supabase.from("invoice_items").insert({
         invoice_id: invoice.id,
         product_id: item.productId,
@@ -72,12 +73,10 @@ export async function createInvoice(data: CreateInvoiceData) {
         quantity: item.quantity,
         unit_price: item.unitPrice,
       });
-      if (itemError)
-        throw new Error("Error en ítem de factura: " + itemError.message);
+      
+      if (itemError) throw new Error("Error guardando ítem: " + itemError.message);
 
       // B. CÁLCULO DE COSTO PROMEDIO (PPP)
-      // NOTA: Ya NO actualizamos el stock aquí para evitar duplicación con el Trigger.
-      // Solo calculamos y actualizamos el PRECIO (average_cost).
 
       const { data: product } = await supabase
         .from("products")
@@ -121,19 +120,19 @@ export async function createInvoice(data: CreateInvoiceData) {
       // C. CREAR MOVIMIENTO (Esto dispara el Trigger de Stock)
       const { error: moveError } = await supabase.from("movements").insert({
         type: "IN",
-        created_at: new Date().toISOString(),
+        created_at: new Date().toISOString(), // Asegura formato ISO
         product_id: item.productId,
         quantity: item.quantity,
         description: `Factura ${invoice.invoice_number} - ${item.description}`,
         technician_name: technicianName,
         invoice_id: invoice.id,
-        // user_email: user.email, // Descomentar si usas la columna user_email
       });
 
-      if (moveError) console.error("Error creando movimiento:", moveError);
-    });
-
-    await Promise.all(itemsPromises);
+      // CAMBIO CRÍTICO: Si falla el movimiento, lanzamos error para que te enteres
+      if (moveError) {
+        throw new Error(`Error crítico al registrar stock: ${moveError.message}`);
+      }
+    }
 
     revalidatePath("/finanzas");
     revalidatePath("/stock");
