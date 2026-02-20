@@ -10,22 +10,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/shared/ui/dialog";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import {
-  FileText,
   Calendar,
   DollarSign,
   Package,
   Loader2,
-  ArrowDownLeft,
-  CheckCircle,
   ExternalLink,
-  ImageIcon,
+  Building2,
+  CheckCircle2,
 } from "lucide-react";
 import { Invoice } from "../types";
 
@@ -51,27 +47,20 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
   useEffect(() => {
     async function fetchLinkedMovements() {
       if (!invoice?.id || !open) return;
-
       setLoadingMovements(true);
       const { data } = await supabase
         .from("movements")
         .select("id, quantity, products(name)")
         .eq("invoice_id", invoice.id);
 
-      if (data) {
-        setMovements(data as unknown as LinkedMovement[]);
-      } else {
-        setMovements([]);
-      }
+      setMovements((data as unknown as LinkedMovement[]) || []);
       setLoadingMovements(false);
     }
-
     fetchLinkedMovements();
   }, [invoice, open, supabase]);
 
   const handleMarkAsPaid = async () => {
     if (!invoice) return;
-
     setIsPaying(true);
     const result = await markInvoicePaid(invoice.id);
     setIsPaying(false);
@@ -80,7 +69,7 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
       onOpenChange(false);
       router.refresh();
     } else {
-      alert("Error al registrar el pago: " + result.error);
+      alert("Error: " + result.error);
     }
   };
 
@@ -88,158 +77,150 @@ export function InvoiceDetailDialog({ invoice, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] bg-card border-border max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-foreground">
-            <FileText className="h-5 w-5 text-primary" />
-            Factura {invoice.invoice_number}
-          </DialogTitle>
-          <DialogDescription>
-            Detalles del comprobante y movimientos asociados.
-          </DialogDescription>
+      <DialogContent className="sm:max-w-[500px] border-none shadow-lg">
+        <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
+          <div className="space-y-1">
+            <DialogTitle className="text-xl font-bold">
+              Factura {invoice.invoice_number}
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Detalles del comprobante
+            </p>
+          </div>
+          <Badge
+            variant="outline"
+            className={
+              invoice.status === "paid"
+                ? "text-green-600 border-green-200 bg-green-50"
+                : "text-orange-600 border-orange-200 bg-orange-50"
+            }
+          >
+            {invoice.status === "paid" ? "Pagado" : "Pendiente"}
+          </Badge>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4">
-          {/* Header Info */}
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Proveedor
-              </p>
-              <p className="text-lg font-bold text-foreground">
-                {invoice.suppliers?.name || "Desconocido"}
-              </p>
-            </div>
-            <div className="text-right">
-              <Badge
-                variant={invoice.status === "paid" ? "default" : "secondary"}
-                className={
-                  invoice.status === "paid"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-orange-500/10 text-orange-600 border-orange-500/20"
-                }
-              >
-                {invoice.status === "paid"
-                  ? "Pagado"
-                  : invoice.status === "overdue"
-                    ? "Vencido"
-                    : "Pendiente"}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar className="h-4 w-4" /> Vencimiento
+        <div className="space-y-6 pt-4">
+          {/* Datos Principales */}
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">
+                  Proveedor y Comprador
+                </p>
+                <p className="text-sm font-semibold">
+                  {invoice.suppliers?.name || "S/D"}
+                </p>
+                <p className="text-xs text-muted-foreground italic">
+                  Para: {invoice.purchaser_company}
+                </p>
               </div>
-              <p className="font-medium">
-                {invoice.due_date
-                  ? format(new Date(invoice.due_date), "PPP", { locale: es })
-                  : "-"}
-              </p>
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <DollarSign className="h-4 w-4" /> Monto Total
-              </div>
-              <p className="font-medium text-lg">
-                {invoice.currency} {invoice.amount_total?.toLocaleString()}
-              </p>
-            </div>
-          </div>
 
-          {/* FILE DOWNLOAD / PREVIEW SECTION */}
-          {invoice.file_url && (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-md">
-                  <ImageIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
+            <div className="flex items-center gap-10">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Comprobante Adjunto
+                  <p className="text-xs text-muted-foreground uppercase">
+                    Emisión
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Imagen / PDF disponible
+                  <p className="text-sm font-medium">
+                    {invoice.date
+                      ? format(new Date(invoice.date), "dd/MM/yyyy")
+                      : "-"}
                   </p>
                 </div>
               </div>
+              <div className="flex items-start gap-3">
+                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">
+                    Vencimiento
+                  </p>
+                  <p className="text-sm font-medium">
+                    {invoice.due_date
+                      ? format(new Date(invoice.due_date), "dd/MM/yyyy")
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">
+                  Monto Total
+                </p>
+                <p className="text-xl font-bold text-primary">
+                  {invoice.currency}{" "}
+                  {invoice.amount_total?.toLocaleString("es-AR", {
+                    minimumFractionDigits: 2,
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Archivo Adjunto */}
+          {invoice.file_url && (
+            <div className="border-t pt-4">
               <Button
-                variant="outline"
-                size="sm"
+                variant="link"
                 asChild
-                className="gap-2 h-8 text-xs"
+                className="h-auto p-0 text-primary text-xs gap-1"
               >
                 <a
                   href={invoice.file_url}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Ver Archivo <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3 w-3" /> Ver comprobante digital
                 </a>
               </Button>
             </div>
           )}
 
-          {/* Stock Movement Indicator */}
-          <div className="border-t border-border pt-4">
-            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <Package className="h-4 w-4" /> Ingresos de Stock
-            </h4>
-
+          {/* Stock vinculados */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+              <Package className="h-3 w-3" /> Artículos vinculados
+            </p>
             {loadingMovements ? (
-              <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              </div>
-            ) : movements.length > 0 ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto" />
+            ) : (
               <div className="space-y-2">
                 {movements.map((move) => (
                   <div
                     key={move.id}
-                    className="flex items-center justify-between p-3 bg-muted/20 rounded-md border border-border"
+                    className="flex justify-between items-center text-sm border-b border-dotted pb-1 last:border-0"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-700">
-                        <ArrowDownLeft className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {move.products?.name || "Producto"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Ingreso vinculado
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right font-bold text-sm">
-                      +{move.quantity} ud.
-                    </div>
+                    <span className="text-muted-foreground">
+                      {move.products?.name}
+                    </span>
+                    <span className="font-mono font-medium">
+                      +{move.quantity}
+                    </span>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <div className="bg-muted/20 p-3 rounded-md text-sm text-muted-foreground italic text-center">
-                No hay movimientos de stock registrados con esta factura.
               </div>
             )}
           </div>
 
-          {/* ACTIONS FOOTER */}
+          {/* Botón de Pago */}
           {invoice.status !== "paid" && (
-            <div className="border-t border-border pt-4 flex justify-end">
+            <div className="pt-4">
               <Button
                 onClick={handleMarkAsPaid}
                 disabled={isPaying}
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="w-full bg-green-600 hover:bg-green-700 text-white h-11"
               >
                 {isPaying ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <CheckCircle className="mr-2 h-4 w-4" />
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
                 )}
-                Pago Realizado
+                Registrar Pago
               </Button>
             </div>
           )}

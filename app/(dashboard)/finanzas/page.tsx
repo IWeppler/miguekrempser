@@ -13,10 +13,12 @@ interface RawInvoice {
   amount_total: number | null;
   currency: string;
   status: string;
+  date: string;
   due_date: string;
   purchaser_company: string | null;
   file_url: string | null;
-  // Supabase puede devolver un objeto o un array dependiendo de la relación
+  supplier_id: string;
+  exchange_rate: number | null;
   suppliers: RawSupplier | RawSupplier[] | null;
 }
 
@@ -30,8 +32,8 @@ export default async function FinanzasPage() {
     supabase.from("products").select("id, name"),
     supabase
       .from("invoices")
-      .select("*, suppliers(id, name)") // Traemos ID y Nombre
-      .order("due_date", { ascending: true }),
+      .select("*, suppliers(id, name)")
+      .order("date", { ascending: true }),
     supabase.from("suppliers").select("id, name").order("name"),
   ]);
 
@@ -39,33 +41,30 @@ export default async function FinanzasPage() {
   const suppliers = suppliersRes.data || [];
 
   // 2. Preparar datos limpios para la Tabla
-  // Casteamos la data cruda a nuestra interfaz RawInvoice[]
   const rawData = (invoicesRes.data || []) as unknown as RawInvoice[];
 
   const tableInvoices: Invoice[] = rawData.map((inv) => {
-    // Normalizamos supplier por si Supabase lo devuelve como array o null
     let supplierData: { id: string; name: string } | null = null;
 
     if (inv.suppliers) {
-      if (Array.isArray(inv.suppliers)) {
-        // Si es array, tomamos el primero
-        supplierData = inv.suppliers[0] || null;
-      } else {
-        // Si es objeto, lo usamos directo
-        supplierData = inv.suppliers;
-      }
+      supplierData = Array.isArray(inv.suppliers)
+        ? inv.suppliers[0]
+        : inv.suppliers;
     }
 
     return {
       id: inv.id,
       invoice_number: inv.invoice_number,
       amount_total: inv.amount_total ?? 0,
-      currency: inv.currency,
-      status: inv.status,
+      currency: inv.currency as "USD" | "ARS",
+      status: inv.status as "pending" | "paid" | "overdue",
+      date: inv.date,
       due_date: inv.due_date,
       file_url: inv.file_url,
       suppliers: supplierData,
-      purchaser_company: inv.purchaser_company,
+      purchaser_company: inv.purchaser_company || "El Tolar SA",
+      supplier_id: inv.supplier_id,
+      exchange_rate: inv.exchange_rate ?? 1,
     };
   });
 

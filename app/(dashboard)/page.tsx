@@ -36,6 +36,9 @@ type RawInvoiceData = {
   currency: string;
   status: string;
   due_date: string;
+  date: string;
+  supplier_id: string;
+  exchange_rate: number | null;
   suppliers: RawSupplierJoin | RawSupplierJoin[] | null;
 };
 
@@ -59,7 +62,18 @@ export default async function DashboardPage() {
     supabase
       .from("invoices")
       .select(
-        "id, invoice_number, amount_total, currency, status, due_date, suppliers(id, name)",
+        `
+        id, 
+        invoice_number, 
+        amount_total, 
+        currency, 
+        status, 
+        due_date, 
+        date, 
+        supplier_id, 
+        exchange_rate, 
+        suppliers(id, name)
+      `,
       )
       .eq("status", "pending"),
   ]);
@@ -97,14 +111,19 @@ export default async function DashboardPage() {
     } else if (inv.suppliers) {
       supplierData = inv.suppliers;
     }
+
     return {
       id: inv.id,
       invoice_number: inv.invoice_number,
       amount_total: inv.amount_total ?? inv.amount ?? 0,
-      currency: inv.currency,
-      status: inv.status,
+      currency: inv.currency as "USD" | "ARS",
+      status: inv.status as "pending" | "paid" | "overdue",
       due_date: inv.due_date,
+      date: inv.date,
+      supplier_id: inv.supplier_id,
+      exchange_rate: inv.exchange_rate ?? 1,
       suppliers: supplierData,
+      purchaser_company: "El Tolar SA",
     };
   });
 

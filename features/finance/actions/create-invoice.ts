@@ -47,7 +47,7 @@ export async function createInvoice(data: CreateInvoiceData) {
         invoice_number: data.invoiceNumber,
         supplier_id: supplierId,
         purchaser_company: data.purchaserCompany,
-        date: new Date().toISOString(),
+        date: data.issueDate.toISOString(),
         due_date: data.dueDate.toISOString(),
         currency: data.currency,
         exchange_rate: data.exchangeRate,

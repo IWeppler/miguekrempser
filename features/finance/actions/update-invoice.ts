@@ -16,6 +16,7 @@ export async function updateInvoice(id: string, data: InvoiceSchema) {
     supplierId,
     newSupplierName,
     invoiceNumber,
+    issueDate,
     dueDate,
     currency,
     exchangeRate,
@@ -43,6 +44,7 @@ export async function updateInvoice(id: string, data: InvoiceSchema) {
       .update({
         supplier_id: finalSupplierId,
         invoice_number: invoiceNumber,
+        date: issueDate.toISOString(),
         due_date: dueDate.toISOString(),
         currency,
         exchange_rate: exchangeRate,
@@ -58,17 +60,13 @@ export async function updateInvoice(id: string, data: InvoiceSchema) {
       throw new Error("Error updating invoice: " + invoiceError.message);
 
     // 3. Handle Items & Stock (The Tricky Part)
-    // Strategy: Delete all existing items and movements for this invoice, then recreate them.
-    // This ensures stock is recalculated correctly based on the new state.
-
+   
     // A. Revert old stock (Fetch old items first)
     const { data: oldItems } = await supabase
       .from("invoice_items")
       .select("*")
       .eq("invoice_id", id);
     if (oldItems) {
-      // Revert logic here if not handled by DB triggers on delete
-      // Assuming we rely on the delete-movement logic or manual revert as in delete-invoice
       for (const item of oldItems) {
         if (item.product_id) {
           const { data: prod } = await supabase

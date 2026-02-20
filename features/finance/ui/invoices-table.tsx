@@ -55,7 +55,8 @@ import { EditInvoiceDialog } from "./edit-invoice-dialog";
 type SortField =
   | "invoice_number"
   | "supplier"
-  | "purchaser_company" // <--- NUEVO CAMPO
+  | "purchaser_company"
+  | "date"
   | "due_date"
   | "status"
   | "amount";
@@ -90,7 +91,7 @@ const SortIcon = ({
 
 export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState<SortField>("due_date");
+  const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [invoiceToEdit, setInvoiceToEdit] = useState<Invoice | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -133,12 +134,16 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
           (a.suppliers?.name || "").localeCompare(b.suppliers?.name || "") *
           multiplier
         );
-      // 2. Lógica de ordenamiento para Empresa
       case "purchaser_company":
         return (
           (a.purchaser_company || "").localeCompare(b.purchaser_company || "") *
           multiplier
         );
+      case "date":
+        return (
+          (new Date(a.date).getTime() - new Date(b.date).getTime()) * multiplier
+        );
+
       case "due_date":
         return (
           (new Date(a.due_date).getTime() - new Date(b.due_date).getTime()) *
@@ -311,12 +316,28 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                 </div>
               </TableHead>
 
+              {/* 3. Columna Fecha Emisión */}
+              <TableHead
+                onClick={() => handleSort("date")}
+                className="cursor-pointer"
+              >
+                <div className="flex items-center">
+                  Emisión{" "}
+                  <SortIcon
+                    field="date"
+                    currentSortField={sortField}
+                    sortDirection={sortDirection}
+                  />
+                </div>
+              </TableHead>
+
+              {/* Columna Vencimiento */}
               <TableHead
                 onClick={() => handleSort("due_date")}
                 className="cursor-pointer"
               >
                 <div className="flex items-center">
-                  Fecha{" "}
+                  Vto.{" "}
                   <SortIcon
                     field="due_date"
                     currentSortField={sortField}
@@ -324,6 +345,7 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
                   />
                 </div>
               </TableHead>
+
               <TableHead
                 onClick={() => handleSort("status")}
                 className="cursor-pointer"
@@ -368,11 +390,17 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
 
                   <TableCell>{inv.suppliers?.name || "-"}</TableCell>
 
-                  {/* 4. Celda de Empresa */}
+                  {/* 3. Celda de Empresa */}
                   <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
                     {inv.purchaser_company || "-"}
                   </TableCell>
 
+                  {/* 4. Celda NUEVA: Fecha de Emisión */}
+                  <TableCell className="text-sm">
+                    {inv.date ? format(new Date(inv.date), "dd/MM/yy") : "-"}
+                  </TableCell>
+
+                  {/* 5. Celda Vencimiento */}
                   <TableCell>
                     {inv.due_date
                       ? format(new Date(inv.due_date), "dd/MM/yy")

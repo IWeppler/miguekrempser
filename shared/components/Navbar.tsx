@@ -27,8 +27,10 @@ import {
   Sprout,
   ChevronDown,
   Loader2,
-  CheckCheck, // Nuevo icono para marcar todo como leido si quisieras
+  CheckCheck,
+  WifiOff,
 } from "lucide-react";
+import { useOnlineStatus } from "@/shared/hooks/useOnlineStatus";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,6 +93,8 @@ const menuItems = [
 
 export function Header() {
   const pathname = usePathname();
+  const isOnline = useOnlineStatus();
+  const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const supabase = createClient();
 
@@ -101,6 +105,10 @@ export function Header() {
 
   // --- NUEVO ESTADO: IDs de notificaciones leídas ---
   const [readIds, setReadIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 1. USUARIO
   useEffect(() => {
@@ -297,7 +305,8 @@ export function Header() {
         >
           <SheetHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-6">
             <SheetTitle className="flex items-center gap-2 text-sidebar-primary">
-              <Sprout className="h-6 w-6" />El Tolar SA
+              <Sprout className="h-6 w-6" />
+              El Tolar SA
             </SheetTitle>
           </SheetHeader>
           <nav className="flex-1 py-4 px-3">
@@ -370,6 +379,12 @@ export function Header() {
 
       {/* --- DESKTOP RIGHT --- */}
       <div className="flex items-center gap-4 ml-auto">
+        {mounted && !isOnline && (
+          <span className="flex items-center gap-1 text-xs text-destructive animate-pulse">
+            <WifiOff size={14} />
+            Sin conexión
+          </span>
+        )}
         <Popover>
           <PopoverTrigger asChild>
             <Button
