@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown, Check, Plus } from "lucide-react";
 import { InvoiceSchema } from "../schemas/invoice-schema";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,14 @@ import {
 } from "@/shared/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Calendar } from "@/shared/ui/calendar";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/shared/ui/command";
 
 interface Props {
   form: UseFormReturn<InvoiceSchema>;
@@ -42,10 +50,12 @@ const COMPANIES = [
 
 export function InvoiceGeneralData({ form, suppliers }: Props) {
   const [isNewSupplier, setIsNewSupplier] = useState(false);
+  const [openCompanyCombo, setOpenCompanyCombo] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-      {/* --- PROVEEDOR --- */}
+      {/* --- PROVEEDOR (Existente) --- */}
       <div className="col-span-1 md:col-span-4 space-y-2">
         <div className="flex items-center justify-between">
           <FormLabel>Proveedor</FormLabel>
@@ -111,32 +121,95 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
         )}
       </div>
 
-      {/* --- EMPRESA COMPRADORA --- */}
+      {/* --- EMPRESA COMPRADORA (MODIFICADO A COMBOBOX) --- */}
       <div className="col-span-1 md:col-span-4">
         <FormField
           control={form.control}
           name="purchaserCompany"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Facturado a nombre de</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger className="bg-background h-9 text-xs">
-                    <SelectValue placeholder="Seleccionar empresa" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {COMPANIES.map((company) => (
-                    <SelectItem
-                      key={company}
-                      value={company}
-                      className="text-xs"
+            <FormItem className="flex flex-col">
+              <FormLabel className="mb-1">Facturado a nombre de</FormLabel>
+              <Popover
+                open={openCompanyCombo}
+                onOpenChange={setOpenCompanyCombo}
+              >
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className={cn(
+                        "w-full justify-between h-9 text-xs font-normal bg-background",
+                        !field.value && "text-muted-foreground",
+                      )}
                     >
-                      {company}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                      {field.value || "Seleccionar empresa..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Buscar o escribir empresa..."
+                      value={companySearch}
+                      onValueChange={setCompanySearch}
+                    />
+                    <CommandList>
+                      <CommandGroup>
+                        {COMPANIES.filter((c) =>
+                          c.toLowerCase().includes(companySearch.toLowerCase()),
+                        ).map((company) => (
+                          <CommandItem
+                            key={company}
+                            value={company}
+                            onSelect={() => {
+                              form.setValue("purchaserCompany", company);
+                              setOpenCompanyCombo(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                company === field.value
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            {company}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+
+                      {/* LÓGICA PARA AGREGAR NUEVA EMPRESA COMPRADORA */}
+                      {companySearch &&
+                        !COMPANIES.some(
+                          (c) =>
+                            c.toLowerCase() === companySearch.toLowerCase(),
+                        ) && (
+                          <div className="p-2 border-t border-border bg-muted/50">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="w-full h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => {
+                                form.setValue(
+                                  "purchaserCompany",
+                                  companySearch.toUpperCase(),
+                                );
+                                setOpenCompanyCombo(false);
+                                setCompanySearch("");
+                              }}
+                            >
+                              <Plus className="mr-1 h-3 w-3" />
+                              Usar &quot;{companySearch.toUpperCase()}&quot;
+                            </Button>
+                          </div>
+                        )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <FormMessage />
             </FormItem>
           )}

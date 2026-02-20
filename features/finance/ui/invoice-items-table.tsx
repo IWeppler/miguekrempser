@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Control,
   UseFormRegister,
@@ -8,13 +10,14 @@ import {
 import { Plus, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { FormField, FormItem, FormControl } from "@/shared/ui/form";
+import { FormField, FormItem, FormControl, FormLabel } from "@/shared/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import {
   Command,
   CommandInput,
   CommandItem,
   CommandList,
+  CommandGroup,
 } from "@/shared/ui/command";
 import { cn } from "@/lib/utils";
 import { InvoiceSchema } from "../schemas/invoice-schema";
@@ -56,7 +59,14 @@ export function InvoiceItemsTable({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => append({ description: "", quantity: 1, unitPrice: 0 })}
+          onClick={() =>
+            append({
+              description: "",
+              quantity: 1,
+              unitPrice: 0,
+              productId: "",
+            })
+          }
           className="h-8 text-xs"
         >
           <Plus className="h-3 w-3 mr-1" /> Agregar Ítem
@@ -83,8 +93,11 @@ export function InvoiceItemsTable({
               <FormField
                 control={control}
                 name={`items.${index}.productId`}
-                render={({ field }) => (
+                render={({ field: comboField }) => (
                   <FormItem className="mb-0">
+                    <FormLabel className="md:hidden text-xs">
+                      Producto
+                    </FormLabel>
                     <Popover
                       open={openProductCombo === index}
                       onOpenChange={(isOpen) => {
@@ -96,14 +109,15 @@ export function InvoiceItemsTable({
                         <FormControl>
                           <Button
                             variant="outline"
+                            role="combobox"
                             className={cn(
                               "w-full justify-between h-9 text-xs",
-                              !field.value && "text-muted-foreground",
+                              !comboField.value && "text-muted-foreground",
                             )}
                           >
-                            {field.value
-                              ? products.find((p) => p.id === field.value)
-                                  ?.name || field.value
+                            {comboField.value
+                              ? products.find((p) => p.id === comboField.value)
+                                  ?.name || comboField.value
                               : "Seleccionar o crear..."}
                             <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                           </Button>
@@ -117,40 +131,84 @@ export function InvoiceItemsTable({
                             onValueChange={setComboSearchValue}
                           />
                           <CommandList>
-                            {products
-                              .filter((p) =>
-                                p.name
-                                  .toLowerCase()
-                                  .includes(comboSearchValue.toLowerCase()),
-                              )
-                              .map((product) => (
-                                <CommandItem
-                                  key={product.id}
-                                  onSelect={() => {
-                                    field.onChange(product.id);
-                                    if (
-                                      !getValues(`items.${index}.description`)
-                                    ) {
+                            <CommandGroup>
+                              {products
+                                .filter((p) =>
+                                  p.name
+                                    .toLowerCase()
+                                    .includes(comboSearchValue.toLowerCase()),
+                                )
+                                .map((product) => (
+                                  <CommandItem
+                                    key={product.id}
+                                    onSelect={() => {
                                       setValue(
-                                        `items.${index}.description`,
-                                        product.name,
+                                        `items.${index}.productId`,
+                                        product.id,
                                       );
-                                    }
-                                    setOpenProductCombo(null);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      product.id === field.value
-                                        ? "opacity-100"
-                                        : "opacity-0",
-                                    )}
-                                  />
-                                  {product.name}
-                                </CommandItem>
-                              ))}
-                            {/* Lógica para crear nuevo simplificada aquí */}
+                                      if (
+                                        !getValues(`items.${index}.description`)
+                                      ) {
+                                        setValue(
+                                          `items.${index}.description`,
+                                          product.name,
+                                        );
+                                      }
+                                      setOpenProductCombo(null);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        product.id === comboField.value
+                                          ? "opacity-100"
+                                          : "opacity-0",
+                                      )}
+                                    />
+                                    {product.name}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+
+                            {/* LÓGICA PARA CREAR NUEVO */}
+                            {comboSearchValue &&
+                              !products.some(
+                                (p) =>
+                                  p.name.toLowerCase() ===
+                                  comboSearchValue.toLowerCase(),
+                              ) && (
+                                <div className="p-2 border-t border-border bg-muted/50">
+                                  <p className="text-[10px] text-muted-foreground mb-2 italic">
+                                    El producto &quot;{comboSearchValue}&quot;
+                                    no existe.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="w-full h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
+                                    onClick={() => {
+                                      setValue(
+                                        `items.${index}.productId`,
+                                        comboSearchValue,
+                                      );
+                                      if (
+                                        !getValues(`items.${index}.description`)
+                                      ) {
+                                        setValue(
+                                          `items.${index}.description`,
+                                          comboSearchValue,
+                                        );
+                                      }
+                                      setOpenProductCombo(null);
+                                      setComboSearchValue("");
+                                    }}
+                                  >
+                                    <Plus className="mr-1 h-3 w-3" />
+                                    Crear e incluir &quot;{comboSearchValue}
+                                    &quot;
+                                  </Button>
+                                </div>
+                              )}
                           </CommandList>
                         </Command>
                       </PopoverContent>
@@ -162,6 +220,7 @@ export function InvoiceItemsTable({
 
             {/* Descripción */}
             <div className="md:col-span-4 md:p-2">
+              <FormLabel className="md:hidden text-xs">Descripción</FormLabel>
               <Input
                 {...register(`items.${index}.description`)}
                 placeholder="Detalle..."
@@ -172,6 +231,7 @@ export function InvoiceItemsTable({
             {/* Cantidad y Precio */}
             <div className="grid grid-cols-2 gap-3 md:contents">
               <div className="md:col-span-1 md:p-2">
+                <FormLabel className="md:hidden text-xs">Cant.</FormLabel>
                 <Input
                   type="number"
                   step="0.01"
@@ -180,6 +240,7 @@ export function InvoiceItemsTable({
                 />
               </div>
               <div className="md:col-span-2 md:p-2">
+                <FormLabel className="md:hidden text-xs">Precio</FormLabel>
                 <Input
                   type="number"
                   step="0.01"
