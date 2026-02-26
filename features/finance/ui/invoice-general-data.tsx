@@ -28,7 +28,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Calendar } from "@/shared/ui/calendar";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -54,16 +53,50 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
   const [companySearch, setCompanySearch] = useState("");
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-      {/* --- PROVEEDOR (Existente) --- */}
-      <div className="col-span-1 md:col-span-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <FormLabel>Proveedor</FormLabel>
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/20 rounded-lg border border-border">
+      {/* --- TIPO DE COMPROBANTE --- */}
+      <div className="col-span-1 md:col-span-3">
+        <FormField
+          control={form.control}
+          name="voucherType"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel className="mb-1 text-primary font-bold">
+                Tipo Comprobante
+              </FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="bg-background h-9 text-xs font-semibold border-primary/40 focus:ring-primary">
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="FC" className="text-xs">
+                    Factura (FC)
+                  </SelectItem>
+                  <SelectItem value="NC" className="text-xs">
+                    Nota de Crédito (NC)
+                  </SelectItem>
+                  <SelectItem value="ND" className="text-xs">
+                    Nota de Débito (ND)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* --- PROVEEDOR --- */}
+      <div className="col-span-1 md:col-span-5 space-y-2">
+        <div className="flex items-center gap-3">
+          <FormLabel className="mb-0">Proveedor</FormLabel>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-5 text-[10px] px-1 text-primary hover:text-primary/80"
+            className="h-5 text-[11px] px-1 text-primary hover:text-primary/80"
             onClick={() => {
               setIsNewSupplier(!isNewSupplier);
               form.setValue("supplierId", undefined);
@@ -102,7 +135,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger className="bg-background h-9 text-xs">
+                    <SelectTrigger className="bg-background h-9 text-xs w-60">
                       <SelectValue placeholder="Seleccionar..." />
                     </SelectTrigger>
                   </FormControl>
@@ -121,7 +154,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
         )}
       </div>
 
-      {/* --- EMPRESA COMPRADORA (MODIFICADO A COMBOBOX) --- */}
+      {/* --- EMPRESA COMPRADORA (COMBOBOX) --- */}
       <div className="col-span-1 md:col-span-4">
         <FormField
           control={form.control}
@@ -238,13 +271,13 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
       </div>
 
       {/* --- FECHA DE EMISIÓN --- */}
-      <div className="col-span-1 md:col-span-5">
+      <div className="col-span-1 md:col-span-3">
         <FormField
           control={form.control}
           name="issueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Fecha de Emisión</FormLabel>
+              <FormLabel className="mb-1">Fecha Emisión</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -258,7 +291,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
                       {field.value ? (
                         format(field.value, "dd/MM/yyyy")
                       ) : (
-                        <span>Seleccionar fecha</span>
+                        <span>Fecha</span>
                       )}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -280,13 +313,13 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
       </div>
 
       {/* --- FECHA DE VENCIMIENTO --- */}
-      <div className="col-span-1 md:col-span-5">
+      <div className="col-span-1 md:col-span-3">
         <FormField
           control={form.control}
           name="dueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Vencimiento</FormLabel>
+              <FormLabel className="mb-1">Vencimiento</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -300,7 +333,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
                       {field.value ? (
                         format(field.value, "dd/MM/yyyy")
                       ) : (
-                        <span>Seleccionar fecha</span>
+                        <span>Fecha</span>
                       )}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
@@ -327,8 +360,8 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
           control={form.control}
           name="currency"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Moneda</FormLabel>
+            <FormItem className="flex flex-col">
+              <FormLabel className="mb-1">Moneda</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="bg-background h-9 text-xs">

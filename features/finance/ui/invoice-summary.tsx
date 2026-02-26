@@ -85,9 +85,8 @@ export function InvoiceSummary({ control, setValue }: Props) {
 
       {/* Cuadro de Totales Finales */}
       <div className="flex justify-end">
-        <div className="w-full md:w-72 space-y-3 bg-muted/30 p-4 rounded-lg border border-border">
           <div className="flex justify-between items-center text-lg font-bold text-foreground">
-            <span>Total {currency}:</span>
+            <span className="pr-4">Total {currency}:</span>
             <span>
               {totalAmount.toLocaleString("es-AR", {
                 minimumFractionDigits: 2,
@@ -114,7 +113,6 @@ export function InvoiceSummary({ control, setValue }: Props) {
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }

@@ -9,10 +9,15 @@ import { InvoiceSchema } from "../schemas/invoice-schema";
 interface UseCreateInvoiceProps {
   products: { id: string; name: string }[];
   file: File | null;
+  affectStock: boolean;
   onSuccess: () => void;
 }
 
-export function useCreateInvoice({ products, file, onSuccess }: UseCreateInvoiceProps) {
+export function useCreateInvoice({
+  products,
+  file,
+  onSuccess,
+}: UseCreateInvoiceProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const supabase = createClient();
@@ -40,13 +45,15 @@ export function useCreateInvoice({ products, file, onSuccess }: UseCreateInvoice
             });
 
             if (newProductResult.error || !newProductResult.data) {
-              throw new Error(`Error al crear producto "${item.productId}": ${newProductResult.error}`);
+              throw new Error(
+                `Error al crear producto "${item.productId}": ${newProductResult.error}`,
+              );
             }
 
             return { ...item, productId: newProductResult.data.id };
           }
           return item;
-        })
+        }),
       );
 
       // 2. GESTIÓN DE ARCHIVO EN STORAGE
@@ -60,7 +67,8 @@ export function useCreateInvoice({ products, file, onSuccess }: UseCreateInvoice
           .from("invoices")
           .upload(filePath, file);
 
-        if (uploadError) throw new Error("Error al subir archivo: " + uploadError.message);
+        if (uploadError)
+          throw new Error("Error al subir archivo: " + uploadError.message);
 
         const { data: urlData } = supabase.storage
           .from("invoices")
@@ -80,7 +88,9 @@ export function useCreateInvoice({ products, file, onSuccess }: UseCreateInvoice
       }
     } catch (error: unknown) {
       console.error(error);
-      setSubmitError(error instanceof Error ? error.message : "Error desconocido");
+      setSubmitError(
+        error instanceof Error ? error.message : "Error desconocido",
+      );
     } finally {
       setIsSubmitting(false);
     }

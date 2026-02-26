@@ -2,6 +2,7 @@ export interface Invoice {
   id: string;
   invoice_number: string;
   purchaser_company?: string | null;
+  voucher_type: "FC" | "NC" | "ND";
   amount_total: number;
   currency: "USD" | "ARS" | string;
   status: "pending" | "paid" | "overdue" | string;

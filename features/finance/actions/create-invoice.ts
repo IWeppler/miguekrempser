@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { InvoiceSchema } from "../schemas/invoice-schema";
 import { revalidatePath } from "next/cache";
 
-type CreateInvoiceData = InvoiceSchema & { fileUrl?: string | null };
+// 1. Recibimos affectStock desde el formulario (solo para NC)
+type CreateInvoiceData = InvoiceSchema & {
+  fileUrl?: string | null;
+  affectStock?: boolean;
+};
 
 export async function createInvoice(data: CreateInvoiceData) {
   const supabase = await createClient();
@@ -34,24 +38,34 @@ export async function createInvoice(data: CreateInvoiceData) {
 
     if (!supplierId) throw new Error("Debe seleccionar o crear un proveedor");
 
-    // 3. CALCULAR TOTALES
-    const totalAmount = data.items.reduce(
+    // 3. CALCULAR TOTALES (Lógica FC/ND vs NC)
+    const rawTotalAmount = data.items.reduce(
       (acc, item) => acc + item.quantity * item.unitPrice,
       0,
     );
 
-    // 4. CREAR LA FACTURA
+    // Si es Nota de Crédito, el monto  es NEGATIVO.
+    // Si es Factura o Nota de Débito, es POSITIVO.
+    const finalAmount =
+      data.voucherType === "NC"
+        ? -Math.abs(rawTotalAmount)
+        : Math.abs(rawTotalAmount);
+
+    // 4. CREAR LA FACTURA (COMPROBANTE)
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .insert({
         invoice_number: data.invoiceNumber,
         supplier_id: supplierId,
         purchaser_company: data.purchaserCompany,
-        date: data.issueDate.toISOString(),
+        voucher_type: data.voucherType,
+        date: data.issueDate
+          ? data.issueDate.toISOString()
+          : new Date().toISOString(),
         due_date: data.dueDate.toISOString(),
         currency: data.currency,
         exchange_rate: data.exchangeRate,
-        amount_total: totalAmount,
+        amount_total: finalAmount,
         status: "pending",
         description: data.description,
         file_url: data.fileUrl,
@@ -60,12 +74,10 @@ export async function createInvoice(data: CreateInvoiceData) {
       .single();
 
     if (invoiceError)
-      throw new Error("Error al crear factura: " + invoiceError.message);
+      throw new Error("Error al crear comprobante: " + invoiceError.message);
 
     // 5. PROCESAR ÍTEMS
     for (const item of data.items) {
-      
-      // A. Ítem de factura
       const { error: itemError } = await supabase.from("invoice_items").insert({
         invoice_id: invoice.id,
         product_id: item.productId,
@@ -73,64 +85,79 @@ export async function createInvoice(data: CreateInvoiceData) {
         quantity: item.quantity,
         unit_price: item.unitPrice,
       });
-      
-      if (itemError) throw new Error("Error guardando ítem: " + itemError.message);
 
-      // B. CÁLCULO DE COSTO PROMEDIO (PPP)
+      if (itemError)
+        throw new Error("Error guardando ítem: " + itemError.message);
 
-      const { data: product } = await supabase
-        .from("products")
-        .select("current_stock, average_cost, currency")
-        .eq("id", item.productId)
-        .single();
-
-      if (product) {
-        const currentStock = Number(product.current_stock || 0);
-        const oldCost = Number(product.average_cost || 0);
-        const newQty = Number(item.quantity);
-        let newUnitPrice = Number(item.unitPrice);
-
-        // Conversión moneda para unificar costos
-        if (data.currency === "ARS" && product.currency === "USD") {
-          newUnitPrice = newUnitPrice / (data.exchangeRate || 1);
-        } else if (data.currency === "USD" && product.currency === "ARS") {
-          newUnitPrice = newUnitPrice * (data.exchangeRate || 1);
-        }
-
-        // Cálculo PPP (Precio Promedio Ponderado)
-        // Fórmula: ((StockActual * CostoActual) + (CantidadNueva * PrecioNuevo)) / (StockTotal)
-        const totalStock = currentStock + newQty;
-        let newAverageCost = oldCost;
-
-        if (totalStock > 0) {
-          newAverageCost =
-            (currentStock * oldCost + newQty * newUnitPrice) / totalStock;
-        }
-
-        // ACTUALIZAMOS SOLO EL PRECIO. El stock lo maneja el trigger al insertar en 'movements' abajo.
-        await supabase
+      if (data.voucherType === "FC") {
+        // --- Recálculo de Costo Promedio (PPP) ---
+        const { data: product } = await supabase
           .from("products")
-          .update({
-            average_cost: newAverageCost,
-            // current_stock: totalStock, <--- ELIMINADO: Conflictivo con Trigger
-          })
-          .eq("id", item.productId);
+          .select("current_stock, average_cost, currency")
+          .eq("id", item.productId)
+          .single();
+
+        if (product) {
+          const currentStock = Number(product.current_stock || 0);
+          const oldCost = Number(product.average_cost || 0);
+          const newQty = Number(item.quantity);
+          let newUnitPrice = Number(item.unitPrice);
+
+          // Conversión moneda
+          if (data.currency === "ARS" && product.currency === "USD") {
+            newUnitPrice = newUnitPrice / (data.exchangeRate || 1);
+          } else if (data.currency === "USD" && product.currency === "ARS") {
+            newUnitPrice = newUnitPrice * (data.exchangeRate || 1);
+          }
+
+          const totalStock = currentStock + newQty;
+          let newAverageCost = oldCost;
+
+          if (totalStock > 0) {
+            newAverageCost =
+              (currentStock * oldCost + newQty * newUnitPrice) / totalStock;
+          }
+
+          // Actualizamos precio
+          await supabase
+            .from("products")
+            .update({ average_cost: newAverageCost })
+            .eq("id", item.productId);
+        }
+
+        // --- Crear Movimiento (IN) ---
+        const { error: moveError } = await supabase.from("movements").insert({
+          type: "IN",
+          created_at: new Date().toISOString(),
+          product_id: item.productId,
+          quantity: item.quantity,
+          description: `Factura ${invoice.invoice_number} - ${item.description}`,
+          technician_name: technicianName,
+          invoice_id: invoice.id,
+        });
+
+        if (moveError)
+          throw new Error(
+            `Error al registrar ingreso de stock: ${moveError.message}`,
+          );
       }
 
-      // C. CREAR MOVIMIENTO (Esto dispara el Trigger de Stock)
-      const { error: moveError } = await supabase.from("movements").insert({
-        type: "IN",
-        created_at: new Date().toISOString(), // Asegura formato ISO
-        product_id: item.productId,
-        quantity: item.quantity,
-        description: `Factura ${invoice.invoice_number} - ${item.description}`,
-        technician_name: technicianName,
-        invoice_id: invoice.id,
-      });
+      // CASO 2: Es una Nota de Crédito y EL USUARIO MARCÓ QUE AFECTA STOCK (Devolución)
+      else if (data.voucherType === "NC" && data.affectStock) {
+        const { error: moveError } = await supabase.from("movements").insert({
+          type: "OUT",
+          created_at: new Date().toISOString(),
+          product_id: item.productId,
+          quantity: item.quantity,
+          description: `Devolución s/NC ${invoice.invoice_number} - ${item.description}`,
+          technician_name: technicianName,
+          invoice_id: invoice.id,
+        });
 
-      // CAMBIO CRÍTICO: Si falla el movimiento, lanzamos error para que te enteres
-      if (moveError) {
-        throw new Error(`Error crítico al registrar stock: ${moveError.message}`);
+        if (moveError)
+          throw new Error(
+            `Error al registrar devolución de stock: ${moveError.message}`,
+          );
       }
     }
 

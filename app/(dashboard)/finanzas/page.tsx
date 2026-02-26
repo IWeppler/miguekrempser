@@ -16,6 +16,7 @@ interface RawInvoice {
   date: string;
   due_date: string;
   purchaser_company: string | null;
+  voucher_type: "FC" | "NC" | "ND";
   file_url: string | null;
   supplier_id: string;
   exchange_rate: number | null;
@@ -65,6 +66,7 @@ export default async function FinanzasPage() {
       purchaser_company: inv.purchaser_company || "El Tolar SA",
       supplier_id: inv.supplier_id,
       exchange_rate: inv.exchange_rate ?? 1,
+      voucher_type: inv.voucher_type || "FC",
     };
   });
 

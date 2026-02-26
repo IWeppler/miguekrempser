@@ -9,7 +9,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { invoiceSchema, type InvoiceSchema } from "../schemas/invoice-schema";
-import { updateInvoice } from "@/features/finance/actions/update-invoice"; // Asegúrate de crear esta acción
+import { updateInvoice } from "@/features/finance/actions/update-invoice";
 import { createProduct } from "@/features/stock/actions/create-product";
 import { createClient } from "@/lib/supabase/client";
 
@@ -67,7 +67,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 interface Props {
-  invoice: Invoice | null; // La factura a editar
+  invoice: Invoice | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   products: { id: string; name: string }[];
@@ -106,6 +106,7 @@ export function EditInvoiceDialog({
   const form = useForm<InvoiceSchema>({
     resolver: zodResolver(invoiceSchema) as unknown as Resolver<InvoiceSchema>,
     defaultValues: {
+      voucherType: "FC", // <--- NUEVO
       currency: "USD",
       exchangeRate: 1,
       items: [{ description: "", quantity: 1, unitPrice: 0, productId: "" }],
@@ -128,6 +129,11 @@ export function EditInvoiceDialog({
     control: form.control,
     name: "exchangeRate",
   });
+  // Obtenemos el tipo para mostrar en el título
+  const currentVoucherType = useWatch({
+    control: form.control,
+    name: "voucherType",
+  });
 
   const totalAmount =
     items?.reduce((acc, item) => {
@@ -142,7 +148,9 @@ export function EditInvoiceDialog({
       setIsLoadingDetails(true);
 
       form.reset({
+        voucherType: (invoice.voucher_type as "FC" | "NC" | "ND") || "FC", // <--- NUEVO (Cargar de DB)
         invoiceNumber: invoice.invoice_number,
+        purchaserCompany: invoice.purchaser_company || "EL TOLAR SA", // <--- Cargar Empresa
         supplierId: invoice.suppliers?.name ? invoice.suppliers.id : undefined,
         dueDate: new Date(invoice.due_date),
         currency: invoice.currency as "USD" | "ARS",
@@ -206,7 +214,7 @@ export function EditInvoiceDialog({
               unit: "Unidad",
               currentStock: 0,
               minStockAlert: 0,
-              description: "Alta automática desde Edición Factura",
+              description: "Alta automática desde Edición Comprobante",
               averageCost: Number(item.unitPrice) || 0,
             });
             if (newProductResult.error) throw new Error(newProductResult.error);
@@ -268,7 +276,15 @@ export function EditInvoiceDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-[95vw] sm:max-w-[900px] max-h-[90vh] overflow-y-auto bg-card border-border p-4 md:p-6">
         <DialogHeader>
-          <DialogTitle>Editar Factura {invoice?.invoice_number}</DialogTitle>
+          <DialogTitle>
+            Editar{" "}
+            {currentVoucherType === "FC"
+              ? "Factura"
+              : currentVoucherType === "NC"
+                ? "Nota de Crédito"
+                : "Nota de Débito"}{" "}
+            {invoice?.invoice_number}
+          </DialogTitle>
         </DialogHeader>
 
         {isLoadingDetails ? (
@@ -282,9 +298,44 @@ export function EditInvoiceDialog({
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* SECCIÓN 1: DATOS GENERALES */}
+
+              {/* ✅ NUEVA FILA: TIPO DE COMPROBANTE Y PROVEEDOR */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
-                {/* Proveedor */}
-                <div className="col-span-1 md:col-span-4 space-y-2">
+                {/* TIPO DE COMPROBANTE (3 columnas) */}
+                <div className="col-span-1 md:col-span-3">
+                  <FormField
+                    control={form.control}
+                    name="voucherType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-primary font-bold">
+                          Tipo Comprobante
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-background font-semibold border-primary/50 focus:ring-primary">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="FC">Factura (FC)</SelectItem>
+                            <SelectItem value="NC">
+                              Nota Crédito (NC)
+                            </SelectItem>
+                            <SelectItem value="ND">Nota Débito (ND)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Proveedor (9 columnas) */}
+                <div className="col-span-1 md:col-span-9 space-y-2">
                   <div className="flex items-center justify-between">
                     <FormLabel>Proveedor</FormLabel>
                     <Button
@@ -347,8 +398,11 @@ export function EditInvoiceDialog({
                     />
                   )}
                 </div>
+              </div>
 
-                {/* EMPRESA COMPRADORA */}
+              {/* FILA 2: DATOS DEL COMPROBANTE (Empresa, Nro, Fecha, Moneda) */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/20 rounded-lg border border-border">
+                {/* EMPRESA COMPRADORA (4 columnas) */}
                 <div className="col-span-1 md:col-span-4">
                   <FormField
                     control={form.control}
@@ -379,7 +433,7 @@ export function EditInvoiceDialog({
                   />
                 </div>
 
-                {/* Nro Factura */}
+                {/* Nro Factura (3 columnas) */}
                 <div className="col-span-1 md:col-span-3">
                   <FormField
                     control={form.control}
@@ -400,7 +454,7 @@ export function EditInvoiceDialog({
                   />
                 </div>
 
-                {/* Fecha */}
+                {/* Fecha (3 columnas) */}
                 <div className="col-span-1 md:col-span-3">
                   <FormField
                     control={form.control}
@@ -442,7 +496,7 @@ export function EditInvoiceDialog({
                   />
                 </div>
 
-                {/* Moneda */}
+                {/* Moneda (2 columnas) */}
                 <div className="col-span-1 md:col-span-2">
                   <FormField
                     control={form.control}
@@ -597,9 +651,7 @@ export function EditInvoiceDialog({
                 <div className="space-y-4 md:space-y-0 md:rounded-md md:border md:border-border md:overflow-hidden">
                   <div className="hidden md:grid md:grid-cols-12 bg-muted text-muted-foreground font-medium text-sm border-b border-border">
                     <div className="col-span-4 px-3 py-2">Producto (Stock)</div>
-                    <div className="col-span-4 px-3 py-2">
-                      Descripción Factura
-                    </div>
+                    <div className="col-span-4 px-3 py-2">Descripción</div>
                     <div className="col-span-1 px-3 py-2 text-right">Cant.</div>
                     <div className="col-span-2 px-3 py-2 text-right">
                       Precio
@@ -654,7 +706,6 @@ export function EditInvoiceDialog({
                                         !field.value && "text-muted-foreground",
                                       )}
                                     >
-                                      {/* Lógica de visualización: ID -> Nombre o Texto Directo */}
                                       {field.value
                                         ? products.find(
                                             (p) => p.id === field.value,
@@ -866,6 +917,13 @@ export function EditInvoiceDialog({
               {/* FOOTER */}
               <div className="flex flex-col-reverse md:flex-row justify-end gap-3 pt-2">
                 <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
                   type="submit"
                   disabled={isSubmitting}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground w-full md:w-auto min-w-[140px]"
@@ -875,7 +933,7 @@ export function EditInvoiceDialog({
                   ) : (
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  Guardar Factura
+                  Guardar Cambios
                 </Button>
               </div>
 

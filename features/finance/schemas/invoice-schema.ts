@@ -13,6 +13,7 @@ export const invoiceSchema = z.object({
   supplierId: z.string().optional(),
   newSupplierName: z.string().optional(),
   purchaserCompany: z.string().min(1, "Debes seleccionar una empresa"),
+  voucherType: z.enum(["FC", "NC", "ND"]).default("FC"),
   invoiceNumber: z.string().min(1, "El número es requerido"),
   issueDate: z.date({ message: "La fecha de emisión es obligatoria" }),
   dueDate: z.date({ message: "La fecha de vencimiento es obligatoria" }),

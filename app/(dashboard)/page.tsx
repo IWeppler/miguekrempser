@@ -38,6 +38,7 @@ type RawInvoiceData = {
   due_date: string;
   date: string;
   supplier_id: string;
+  voucher_type: "FC" | "NC" | "ND";
   exchange_rate: number | null;
   suppliers: RawSupplierJoin | RawSupplierJoin[] | null;
 };
@@ -121,6 +122,7 @@ export default async function DashboardPage() {
       due_date: inv.due_date,
       date: inv.date,
       supplier_id: inv.supplier_id,
+      voucher_type: inv.voucher_type || "FC",
       exchange_rate: inv.exchange_rate ?? 1,
       suppliers: supplierData,
       purchaser_company: "El Tolar SA",
