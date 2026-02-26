@@ -14,6 +14,9 @@ import { createClient } from "@/lib/supabase/server";
 import { FinishCycleDialog } from "@/features/planning/ui/finish-cycle-dialog";
 import { CycleOptionsMenu } from "@/features/planning/ui/cycle-options-menu";
 import { HistoryDetailsDialog } from "@/features/planning/ui/history-details-dialog";
+import { RainfallTracker } from "@/features/planning/ui/rainfall-tracker";
+import { Rainfall } from "@/features/planning/types";
+import { getRainfallsByLot } from "@/features/planning/actions/rainfall-actions";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -49,7 +52,11 @@ export default async function LotDetailPage({ params }: Props) {
   const supabase = await createClient();
 
   // 1. Buscamos datos Lote y Ciclos
-  const [lot, cycles] = await Promise.all([getLotById(id), getCropCycles(id)]);
+  const [lot, cycles, rainfalls] = await Promise.all([
+    getLotById(id),
+    getCropCycles(id),
+    getRainfallsByLot(id),
+  ]);
 
   if (!lot) return notFound();
 
@@ -125,7 +132,9 @@ export default async function LotDetailPage({ params }: Props) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Columna Izquierda: CAMPAÑA ACTIVA */}
+        {/* ========================================== */}
+        {/* COLUMNA IZQUIERDA: CAMPAÑA ACTIVA (2/3)    */}
+        {/* ========================================== */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -133,7 +142,7 @@ export default async function LotDetailPage({ params }: Props) {
               Campaña Actual
             </h2>
 
-            {/* CORRECCIÓN 1: El botón de cierre SOLO si hay activeCycle */}
+            {/* El botón de cierre SOLO si hay activeCycle */}
             {activeCycle && (
               <FinishCycleDialog
                 cycleId={activeCycle.id}
@@ -163,7 +172,7 @@ export default async function LotDetailPage({ params }: Props) {
                     </p>
                   </div>
 
-                  {/* DERECHA: KPIs Financieros + Calculadora */}
+                  {/* DERECHA: KPIs Financieros */}
                   <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground uppercase font-bold">
@@ -180,8 +189,6 @@ export default async function LotDetailPage({ params }: Props) {
                         {(totalInvestedHa * lot.hectares).toLocaleString()}
                       </p>
                     </div>
-
-                    {/* Calculadora de Indiferencia */}
                   </div>
                 </div>
               </CardHeader>
@@ -215,92 +222,99 @@ export default async function LotDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Columna Derecha: HISTORIAL */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <History className="h-5 w-5 text-orange-400" /> Historial
-            </h2>
-          </div>
+        {/* COLUMNA DERECHA: LLUVIAS E HISTORIAL (1/3) */}
+        <div className="space-y-6">
+          <RainfallTracker lotId={lot.id} rainfalls={rainfalls as Rainfall[]} />
 
-          <div className="space-y-3">
-            {historyCycles.length > 0 ? (
-              historyCycles.map((cycle) => (
-                <Card
-                  key={cycle.id}
-                  className={`shadow-sm relative group transition-all hover:border-primary/20 ${
-                    cycle.status === "planned"
-                      ? "border-dashed border-blue-300 bg-blue-50/20"
-                      : ""
-                  }`}
-                >
-                  {/* MENÚ DE OPCIONES (Absoluto en la esquina) */}
-                  <div className="absolute top-2 right-2 z-10 opacity-70 group-hover:opacity-100 transition-opacity">
-                    <CycleOptionsMenu
-                      cycleId={cycle.id}
-                      lotId={lot.id}
-                      status={cycle.status}
-                    />
-                  </div>
+          {/* HISTORIAL DE CAMPAÑAS */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <History className="h-5 w-5 text-orange-400" /> Historial
+              </h2>
+            </div>
 
-                  <CardContent className="px-4">
-                    {/* ENCABEZADO: Título y Badge */}
-                    <div className="pr-8 mb-2">
-                      {" "}
-                      {/* pr-8 deja espacio para el menú */}
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-foreground text-lg leading-tight">
-                          {cycle.crop}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge
-                          variant={
-                            cycle.status === "planned" ? "outline" : "secondary"
-                          }
-                          className="text-[10px] h-5 px-1.5 font-normal"
-                        >
-                          {cycle.status === "planned"
-                            ? "FUTURO"
-                            : cycle.status === "harvested"
-                              ? "COSECHADO"
-                              : "CERRADO"}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" /> {cycle.campaign}
-                        </span>
-                      </div>
+            <div className="space-y-3">
+              {historyCycles.length > 0 ? (
+                historyCycles.map((cycle) => (
+                  <Card
+                    key={cycle.id}
+                    className={`shadow-sm relative group transition-all hover:border-primary/20 ${
+                      cycle.status === "planned"
+                        ? "border-dashed border-blue-300 bg-blue-50/20"
+                        : ""
+                    }`}
+                  >
+                    {/* MENÚ DE OPCIONES */}
+                    <div className="absolute top-2 right-2 z-10 opacity-70 group-hover:opacity-100 transition-opacity">
+                      <CycleOptionsMenu
+                        cycleId={cycle.id}
+                        lotId={lot.id}
+                        status={cycle.status}
+                      />
                     </div>
 
-                    {/* DATOS DE COSECHA (Si existen) */}
-                    {cycle.yield_ton_ha && (
-                      <div className="mt-3 bg-green-50/50 p-2 rounded-md border border-green-100/50">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-muted-foreground">Rinde:</span>
-                          <span className="font-bold text-green-700">
-                            {cycle.yield_ton_ha} Tn/Ha
+                    <CardContent className="px-4">
+                      {/* ENCABEZADO */}
+                      <div className="pr-8 mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-foreground text-lg leading-tight">
+                            {cycle.crop}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            variant={
+                              cycle.status === "planned"
+                                ? "outline"
+                                : "secondary"
+                            }
+                            className="text-[10px] h-5 px-1.5 font-normal"
+                          >
+                            {cycle.status === "planned"
+                              ? "FUTURO"
+                              : cycle.status === "harvested"
+                                ? "COSECHADO"
+                                : "CERRADO"}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" /> {cycle.campaign}
                           </span>
                         </div>
                       </div>
-                    )}
 
-                    {/* BOTÓN DE DETALLE COMPLETO (Separado abajo) */}
-                    <div className="pt-3  border-t border-border/50">
-                      <HistoryDetailsDialog
-                        cycle={cycle}
-                        lotHectares={Number(lot.hectares)}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="text-center py-8 bg-muted/20 rounded-lg border-2 border-dashed border-border/50">
-                <p className="text-sm text-muted-foreground italic">
-                  No hay historial registrado.
-                </p>
-              </div>
-            )}
+                      {/* DATOS DE COSECHA */}
+                      {cycle.yield_ton_ha && (
+                        <div className="mt-3 bg-green-50/50 p-2 rounded-md border border-green-100/50">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground">
+                              Rinde:
+                            </span>
+                            <span className="font-bold text-green-700">
+                              {cycle.yield_ton_ha} Tn/Ha
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* BOTÓN DE DETALLE COMPLETO */}
+                      <div className="pt-3 border-t border-border/50">
+                        <HistoryDetailsDialog
+                          cycle={cycle}
+                          lotHectares={Number(lot.hectares)}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-8 bg-muted/20 rounded-lg border-2 border-dashed border-border/50">
+                  <p className="text-sm text-muted-foreground italic">
+                    No hay historial registrado.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

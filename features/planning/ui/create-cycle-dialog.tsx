@@ -52,7 +52,7 @@ export function CreateCycleDialog({ lotId }: Props) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      campaign: "24-25", // Valor sugerido
+      campaign: "25-26",
       crop: "",
       status: "active",
       observations: "",

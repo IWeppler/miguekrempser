@@ -51,3 +51,11 @@ export interface LaborItem {
   price_unit: number;
   cost_per_ha: number;
 }
+
+export interface Rainfall {
+  id: string;
+  lot_id: string;
+  date: string;
+  millimeters: number;
+  observations?: string | null;
+}

@@ -8,7 +8,6 @@ export const laborSchema = z.object({
   description: z.string().optional(),
   contractor_name: z.string().optional(),
 
-  // Usamos coerce para convertir el input texto a número automáticamente
   service_cost_ha: z.coerce.number().min(0).default(0),
 
   items: z

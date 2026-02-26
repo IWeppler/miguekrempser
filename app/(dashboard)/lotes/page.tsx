@@ -27,12 +27,11 @@ export default async function LotesPage() {
     0,
   );
 
-  // Obtenemos campos únicos
   const totalFields = new Set(lots.map((l) => l.field_name)).size;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      {/* HEADER ESTÁTICO (Server Side) */}
+      {/* HEADER ESTÁTICO */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">

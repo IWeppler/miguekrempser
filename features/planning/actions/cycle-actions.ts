@@ -32,7 +32,7 @@ export async function getCropCycles(lotId: string) {
     .from("crop_cycles")
     .select("*")
     .eq("lot_id", lotId)
-    .order("created_at", { ascending: false }); // Las más nuevas primero
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error(error);
