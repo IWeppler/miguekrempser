@@ -14,6 +14,7 @@ import { PDFDownloadLink } from "@react-pdf/renderer";
 import { RemitoDocument } from "@/features/moves/components/remito-pdf";
 import { type RemitoSchema } from "@/features/moves/schemas/remito-schema";
 import { MovementDetailDialog } from "./movement-detail-dialog";
+import { IssuerCompany } from "../types";
 
 interface MovementRow {
   id: string;
@@ -30,28 +31,40 @@ interface MovementRow {
     driver: string;
     plate: string;
     technician: string;
+    issuer_company_id?: string;
   } | null;
 }
 
 interface Props {
   move: MovementRow;
+  issuer?: Partial<IssuerCompany>;
 }
 
-export function MovementActions({ move }: Props) {
+export function MovementActions({ move, issuer }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
 
-  // 2. Usar datos reales del remito si existen (Si es un movimiento viejo, usa defaults)
   const remitoInfo = move.remitos;
 
+  const safeIssuer: IssuerCompany = {
+    id: issuer?.id || "default-id",
+    name: issuer?.name || "Empresa por Defecto",
+    initials: issuer?.initials || "ED",
+    address: issuer?.address || "Sin dirección",
+    cuit: issuer?.cuit || "00-00000000-0",
+    phone: issuer?.phone || "Sin teléfono",
+    iib: issuer?.iib || "Sin IIB",
+    inicio_act: issuer?.inicio_act || "-",
+  };
+
   const remitoData: RemitoSchema = {
-    // Si existe nro de orden real, usarlo. Sino generar uno con el ID.
     orderNumber:
       remitoInfo?.order_number || `MOV-${move.id.slice(0, 8).toUpperCase()}`,
 
     technician:
       remitoInfo?.technician || move.technician_name || "Sin responsable",
 
-    // DATOS REALES (Ya no mockeados)
+    issuerCompanyId: remitoInfo?.issuer_company_id || safeIssuer.id,
+
     destination: remitoInfo?.destination || "No especificado (Histórico)",
     driver: remitoInfo?.driver || "-",
     plate: remitoInfo?.plate || "-",
@@ -107,6 +120,7 @@ export function MovementActions({ move }: Props) {
                     data={remitoData}
                     products={productsMock}
                     createdAt={move.created_at}
+                    issuer={safeIssuer}
                   />
                 }
                 fileName={`remito-${remitoData.orderNumber}.pdf`}
@@ -119,7 +133,9 @@ export function MovementActions({ move }: Props) {
                     ) : (
                       <Printer className="mr-2 h-4 w-4" />
                     )}
-                    {loading ? "Generando..." : "Imprimir Remito"}
+                    <span className="ml-2">
+                      {loading ? "Generando..." : "Imprimir Remito"}
+                    </span>
                   </>
                 )}
               </PDFDownloadLink>

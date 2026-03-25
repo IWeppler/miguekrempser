@@ -43,10 +43,10 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 
+import { Invoice } from "../types";
+import { format } from "date-fns";
 import { CreateInvoiceDialog } from "./create-invoice-dialog";
 import { InvoiceDetailDialog } from "./invoice-detail-dialog";
-import { format } from "date-fns";
-import { Invoice } from "../types";
 import { updateInvoiceStatus } from "../actions/update-invoice-status";
 import { deleteInvoice } from "../actions/delete-invoice";
 import { EditInvoiceDialog } from "./edit-invoice-dialog";
@@ -66,6 +66,7 @@ type SortDirection = "asc" | "desc";
 interface Props {
   products: { id: string; name: string }[];
   suppliers: { id: string; name: string }[];
+  myCompanies: { id: string; name: string }[];
   initialInvoices: Invoice[];
 }
 
@@ -89,7 +90,12 @@ const SortIcon = ({
   );
 };
 
-export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
+export function InvoicesTable({
+  products,
+  suppliers,
+  initialInvoices,
+  myCompanies,
+}: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
@@ -265,7 +271,11 @@ export function InvoicesTable({ products, suppliers, initialInvoices }: Props) {
         </div>
 
         <div className="flex-none w-full sm:w-auto">
-          <CreateInvoiceDialog products={products} suppliers={suppliers} />
+          <CreateInvoiceDialog
+            products={products}
+            suppliers={suppliers}
+            myCompanies={myCompanies}
+          />
         </div>
       </div>
 

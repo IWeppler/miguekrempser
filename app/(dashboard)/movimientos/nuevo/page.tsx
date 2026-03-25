@@ -8,17 +8,24 @@ export default async function NuevoRemitoPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const currentUserEmail = user?.email;
   const currentUserName = user?.user_metadata?.full_name;
 
+  // 1. Obtener perfiles para el selector de ingenieros
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, full_name, email")
     .order("full_name");
 
+  // 2. Obtener productos para el detalle de carga
   const { data: products } = await supabase
     .from("products")
     .select("id, name, unit")
+    .order("name");
+
+  // 3. OBTENER LAS EMPRESAS EMISORAS (Desde la nueva tabla my_companies)
+  const { data: issuerCompanies } = await supabase
+    .from("my_companies")
+    .select("*")
     .order("name");
 
   return (
@@ -48,7 +55,7 @@ export default async function NuevoRemitoPage() {
       <NewRemitoForm
         products={products || []}
         profiles={profiles || []}
-        currentUserEmail={currentUserEmail}
+        issuerCompanies={issuerCompanies || []} // <-- PASAMOS LAS EMPRESAS AQUÍ
         currentUserName={currentUserName}
       />
     </div>

@@ -23,8 +23,13 @@ export default async function ConfiguracionPage() {
     full_name: user.user_metadata?.full_name || "",
   };
 
+  const { data: companies } = await supabase
+    .from("my_companies")
+    .select("*")
+    .order("name");
+
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
+    <div className="container max-w-7xl py-8 space-y-6 mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Configuración
@@ -34,10 +39,10 @@ export default async function ConfiguracionPage() {
         </p>
       </div>
 
-      {/* 3. Renderizar Formulario con Datos Reales */}
       <SettingsForm
         user={{ id: user.id, email: user.email }}
         profile={safeProfile}
+        initialCompanies={companies || []}
       />
     </div>
   );

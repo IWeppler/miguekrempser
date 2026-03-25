@@ -4,7 +4,6 @@ import { startOfMonth, endOfMonth } from "date-fns";
 import { FinanceStats } from "@/features/finance/ui/finance-stats";
 import { Invoice } from "@/features/finance/types";
 
-// TIPOS PARA LA RESPUESTA DE SUPABASE (RAW DATA)
 type RawSupplier = { id: string; name: string };
 
 interface RawInvoice {
@@ -28,18 +27,20 @@ const getAmount = (inv: Invoice) => Number(inv.amount_total ?? 0);
 export default async function FinanzasPage() {
   const supabase = await createClient();
 
-  // 1. Obtener Datos
-  const [productsRes, invoicesRes, suppliersRes] = await Promise.all([
-    supabase.from("products").select("id, name"),
-    supabase
-      .from("invoices")
-      .select("*, suppliers(id, name)")
-      .order("date", { ascending: true }),
-    supabase.from("suppliers").select("id, name").order("name"),
-  ]);
+  const [productsRes, invoicesRes, suppliersRes, myCompaniesRes] =
+    await Promise.all([
+      supabase.from("products").select("id, name"),
+      supabase
+        .from("invoices")
+        .select("*, suppliers(id, name)")
+        .order("date", { ascending: true }),
+      supabase.from("suppliers").select("id, name").order("name"),
+      supabase.from("my_companies").select("id, name").order("name"),
+    ]);
 
   const products = productsRes.data || [];
   const suppliers = suppliersRes.data || [];
+  const myCompanies = myCompaniesRes.data || [];
 
   // 2. Preparar datos limpios para la Tabla
   const rawData = (invoicesRes.data || []) as unknown as RawInvoice[];
@@ -63,7 +64,7 @@ export default async function FinanzasPage() {
       due_date: inv.due_date,
       file_url: inv.file_url,
       suppliers: supplierData,
-      purchaser_company: inv.purchaser_company || "El Tolar SA",
+      purchaser_company: inv.purchaser_company || "EL TOLAR SA",
       supplier_id: inv.supplier_id,
       exchange_rate: inv.exchange_rate ?? 1,
       voucher_type: inv.voucher_type || "FC",
@@ -138,6 +139,7 @@ export default async function FinanzasPage() {
           products={products}
           initialInvoices={tableInvoices}
           suppliers={suppliers}
+          myCompanies={myCompanies}
         />
       </div>
     </div>

@@ -11,3 +11,17 @@ export interface Movement {
     category?: string;
   } | null;
 }
+
+export interface IssuerCompany {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  cuit: string;
+  iib: string;
+  inicio_act: string;
+  initials: string;
+  iva_condition?: string;
+  cai_number?: string;
+  cai_expiration?: string;
+}

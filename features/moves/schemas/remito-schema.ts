@@ -12,6 +12,7 @@ export const remitoSchema = z.object({
   // Datos Generales
   orderNumber: z.string().min(1, "Falta Nro de Orden"),
   technician: z.string().min(1, "Seleccioná un ingeniero"),
+  issuerCompanyId: z.string().min(1, "Seleccioná la empresa emisora"),
 
   // Datos Logísticos
   destination: z.string().min(1, "Indicá el destino"),

@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  Document,
-  Page,
-  Text,
-  View,
-  StyleSheet,
-} from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { RemitoSchema } from "@/features/moves/schemas/remito-schema";
+import { IssuerCompany } from "../types";
 
-// Estilos ajustados al formato oficial argentino (Imagen de referencia)
 const styles = StyleSheet.create({
   page: {
     padding: 20,
@@ -172,54 +166,57 @@ const styles = StyleSheet.create({
 
 interface Props {
   data: RemitoSchema;
-  products: { id: string; name: string; unit?: string }[]; // Agregué unit opcional
+  products: { id: string; name: string; unit?: string }[];
+  issuer: IssuerCompany;
   createdAt: string;
 }
 
-export const RemitoDocument = ({ data, products, createdAt }: Props) => {
+export const RemitoDocument = ({
+  data,
+  products,
+  issuer,
+  createdAt,
+}: Props) => {
   const dateObj = new Date(createdAt);
-
-  // EMPRESA FICTICIA (Reemplazar con datos reales de AgroGestión)
-  const COMPANY = {
-    name: "AGRO GESTIÓN S.A.",
-    address: "Ruta Nacional 34 Km 500, Santa Fe",
-    phone: "Tel: (0341) 455-5555",
-    cuit: "30-71000000-1",
-    iib: "915-758504-2",
-    inicioAct: "12/06/2020",
-  };
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* --- HEADER --- */}
+        {/* --- HEADER DINÁMICO --- */}
         <View style={styles.headerContainer}>
-          {/* Izquierda: Datos Empresa */}
+          {/* Datos de la empresa emisora seleccionada */}
           <View style={styles.headerLeft}>
-            {/* Simulación de Logo (Caja) */}
             <View
               style={{
                 borderWidth: 1,
-                width: 30,
-                height: 30,
+                width: 35,
+                height: 35,
                 marginBottom: 5,
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Text style={{ fontWeight: "bold", fontSize: 16 }}>AG</Text>
+              <Text style={{ fontWeight: "bold", fontSize: 14 }}>
+                {issuer?.initials || "ET"}
+              </Text>
             </View>
-            <Text style={styles.companyTitle}>{COMPANY.name}</Text>
-            <Text style={styles.companyInfo}>{COMPANY.address}</Text>
-            <Text style={styles.companyInfo}>{COMPANY.phone}</Text>
+            <Text style={styles.companyTitle}>
+              {issuer?.name || "SIN NOMBRE"}
+            </Text>
+            <Text style={styles.companyInfo}>
+              {issuer?.address || "Dirección no disponible"}
+            </Text>
+            <Text style={styles.companyInfo}>
+              {issuer?.phone || "Teléfono no disponible"}
+            </Text>
             <Text
               style={[styles.companyInfo, { fontWeight: "bold", marginTop: 2 }]}
             >
-              I.V.A. RESPONSABLE INSCRIPTO
+              {issuer?.iva_condition || "RESPONSABLE INSCRIPTO"}
             </Text>
           </View>
 
-          {/* Centro: Letra R */}
+          {/* Letra del comprobante */}
           <View style={styles.headerCenter}>
             <View style={styles.letterBox}>
               <Text style={styles.letter}>R</Text>
@@ -227,7 +224,7 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
             <Text style={styles.letterCode}>CÓD. Nº 091</Text>
           </View>
 
-          {/* Derecha: Datos Documento */}
+          {/* Datos del documento y legales del emisor */}
           <View style={styles.headerRight}>
             <Text style={styles.remitoTitle}>REMITO</Text>
             <View
@@ -235,6 +232,7 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
                 flexDirection: "row",
                 justifyContent: "space-between",
                 marginBottom: 5,
+                width: "100%",
               }}
             >
               <Text style={styles.labelBold}>Nº COMPROBANTE:</Text>
@@ -243,24 +241,32 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
               </Text>
             </View>
             <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                width: "100%",
+              }}
             >
               <Text style={styles.labelBold}>FECHA EMISIÓN:</Text>
               <Text style={{ fontSize: 10 }}>
                 {dateObj.toLocaleDateString("es-AR")}
               </Text>
             </View>
-            <View style={{ marginTop: 10 }}>
-              <Text style={styles.companyInfo}>CUIT: {COMPANY.cuit}</Text>
-              <Text style={styles.companyInfo}>Ing. Brutos: {COMPANY.iib}</Text>
+            <View style={{ marginTop: 10, alignItems: "flex-end" }}>
               <Text style={styles.companyInfo}>
-                Inicio Act.: {COMPANY.inicioAct}
+                CUIT: {issuer?.cuit || "-"}
+              </Text>
+              <Text style={styles.companyInfo}>
+                Ing. Brutos: {issuer?.iib || "-"}
+              </Text>
+              <Text style={styles.companyInfo}>
+                Inicio Act.: {issuer?.inicio_act || "-"}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* --- DESTINATARIO (SEÑORES) --- */}
+        {/* --- DESTINATARIO --- */}
         <View style={styles.sectionBox}>
           <Text style={[styles.label, { width: "100%", marginBottom: 2 }]}>
             SEÑORES:
@@ -284,7 +290,7 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
           </View>
         </View>
 
-        {/* --- TRANSPORTE --- */}
+        {/* --- DATOS DE TRANSPORTE --- */}
         <View style={styles.sectionBox}>
           <View style={styles.row}>
             <Text style={styles.label}>COND. VENTA:</Text>
@@ -302,7 +308,6 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
 
         {/* --- TABLA DE ITEMS --- */}
         <View style={styles.tableContainer}>
-          {/* Header Tabla */}
           <View style={styles.tableHeader}>
             <Text style={[styles.colQty, styles.headerText]}>CANTIDAD</Text>
             <Text style={[styles.colUnit, styles.headerText]}>UM</Text>
@@ -312,11 +317,10 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
             <Text style={[styles.colBultos, styles.headerText]}>BULTOS</Text>
           </View>
 
-          {/* Filas */}
           {data.items.map((item, index) => {
             const product = products.find((p) => p.id === item.productId);
             const prodName = product?.name || "Desconocido";
-            const unit = item.unit || product?.unit || "ud"; // Usamos la unidad del form o del producto
+            const unit = item.unit || product?.unit || "ud";
 
             return (
               <View key={index} style={styles.tableRow}>
@@ -326,8 +330,7 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
                 <Text style={[styles.colUnit, styles.rowText]}>{unit}</Text>
                 <Text style={[styles.colCode, styles.rowText]}>
                   {index + 100}
-                </Text>{" "}
-                {/* Código dummy */}
+                </Text>
                 <Text style={[styles.colDesc, styles.rowText]}>{prodName}</Text>
                 <Text style={[styles.colBatch, styles.rowText]}>
                   {item.batch || "-"}
@@ -338,48 +341,37 @@ export const RemitoDocument = ({ data, products, createdAt }: Props) => {
           })}
         </View>
 
-        {/* --- LEGAL DISCLAIMER (Copiado de la imagen) --- */}
-        <View style={styles.legalBox}>
-          <Text style={styles.legalText}>
-            Comp. afectado:{" "}
-            {data.observations ? `OBS: ${data.observations}` : "-"}
-          </Text>
-          <Text style={[styles.legalText, { marginTop: 2 }]}>
-            SIENDO MI RESPONSABILIDAD, HE PROCEDIDO AL CONTROL DE LA MERCADERIA
-            CARGADA EN EL TRANSPORTE, LA CUAL COINCIDE EN SU TOTALIDAD CON EL
-            DETALLE DEL PRESENTE REMITO. FIRMO EN CONFORMIDAD.
-          </Text>
-          <Text style={[styles.legalText, { marginTop: 2 }]}>
-            Las mercaderías involucradas en este remito viajan por cuenta y
-            orden del destinatario. La empresa no se responsabiliza por daños o
-            faltantes una vez firmada la conformidad.
-          </Text>
-        </View>
-
-        {/* --- FIRMAS --- */}
+        {/* --- PIE DE PÁGINA: OBSERVACIONES Y FIRMAS --- */}
         <View style={styles.footerContainer}>
           <View style={styles.obsBox}>
             <Text style={styles.labelBold}>OBSERVACIONES:</Text>
             <Text style={{ fontSize: 8, marginTop: 2 }}>
-              {data.observations}
+              {data.observations || "-"}
             </Text>
           </View>
           <View style={styles.signBox}>
             <Text style={styles.labelBold}>RECIBÍ CONFORME</Text>
             <View style={styles.signLine}>
-              <Text>FIRMA Y ACLARACIÓN</Text>
+              <Text style={{ fontSize: 7 }}>FIRMA Y ACLARACIÓN</Text>
             </View>
           </View>
         </View>
 
-        {/* --- CAI / VENCIMIENTO --- */}
+        {/* --- CAI Y VENCIMIENTO --- */}
         <View style={styles.caiBox}>
           <Text style={{ fontSize: 6 }}>
             Original: Blanco / Duplicado: Color
           </Text>
           <View style={{ alignItems: "flex-end" }}>
-            <Text style={styles.caiText}>C.A.I. Nº: 51465215829726</Text>
-            <Text style={styles.caiText}>Fecha Vto.: 17/11/2028</Text>
+            <Text style={styles.caiText}>
+              C.A.I. Nº: {issuer?.cai_number || "-"}
+            </Text>
+            <Text style={styles.caiText}>
+              Fecha Vto.:{" "}
+              {issuer?.cai_expiration
+                ? new Date(issuer.cai_expiration).toLocaleDateString("es-AR")
+                : "-"}
+            </Text>
           </View>
         </View>
       </Page>

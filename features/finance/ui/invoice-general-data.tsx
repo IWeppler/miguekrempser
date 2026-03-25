@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { format } from "date-fns";
-import { CalendarIcon, ChevronsUpDown, Check, Plus } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown, Check } from "lucide-react";
 import { InvoiceSchema } from "../schemas/invoice-schema";
 import { cn } from "@/lib/utils";
 
@@ -32,25 +32,27 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandEmpty,
 } from "@/shared/ui/command";
+
+interface MyCompany {
+  id: string;
+  name: string;
+}
 
 interface Props {
   form: UseFormReturn<InvoiceSchema>;
   suppliers: { id: string; name: string }[];
+  myCompanies?: MyCompany[];
 }
 
-const COMPANIES = [
-  "EL TOLAR SA",
-  "APAT SRL",
-  "HAIFA CEREALES SRL ",
-  "3 AGRO SRL",
-  "LA ANGELINA SRL",
-];
-
-export function InvoiceGeneralData({ form, suppliers }: Props) {
+export function InvoiceGeneralData({ form, suppliers, myCompanies }: Props) {
   const [isNewSupplier, setIsNewSupplier] = useState(false);
   const [openCompanyCombo, setOpenCompanyCombo] = useState(false);
   const [companySearch, setCompanySearch] = useState("");
+
+  // Aseguramos que siempre sea un array, incluso si la prop no llega o es null en el primer render
+  const safeCompanies = myCompanies || [];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-muted/20 rounded-lg border border-border">
@@ -61,7 +63,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
           name="voucherType"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="mb-1 text-primary font-bold">
+              <FormLabel className="mb-1 text-primary font-bold text-xs">
                 Tipo Comprobante
               </FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -91,15 +93,15 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
       {/* --- PROVEEDOR --- */}
       <div className="col-span-1 md:col-span-5 space-y-2">
         <div className="flex items-center gap-3">
-          <FormLabel className="mb-0">Proveedor</FormLabel>
+          <FormLabel className="mb-0 text-xs">Proveedor</FormLabel>
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-5 text-[11px] px-1 text-primary hover:text-primary/80"
+            className="h-5 text-[10px] px-1 text-primary hover:text-primary/80"
             onClick={() => {
               setIsNewSupplier(!isNewSupplier);
-              form.setValue("supplierId", undefined);
+              form.setValue("supplierId", "");
               form.setValue("newSupplierName", "");
             }}
           >
@@ -140,7 +142,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {suppliers.map((s) => (
+                    {(suppliers || []).map((s) => (
                       <SelectItem key={s.id} value={s.id} className="text-xs">
                         {s.name}
                       </SelectItem>
@@ -154,14 +156,16 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
         )}
       </div>
 
-      {/* --- EMPRESA COMPRADORA (COMBOBOX) --- */}
+      {/* --- EMPRESA COMPRADORA (COMBOBOX DINÁMICO) --- */}
       <div className="col-span-1 md:col-span-4">
         <FormField
           control={form.control}
           name="purchaserCompany"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="mb-1">Facturado a nombre de</FormLabel>
+              <FormLabel className="mb-1 text-xs">
+                Facturado a nombre de
+              </FormLabel>
               <Popover
                 open={openCompanyCombo}
                 onOpenChange={setOpenCompanyCombo}
@@ -176,7 +180,10 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
                         !field.value && "text-muted-foreground",
                       )}
                     >
-                      {field.value || "Seleccionar empresa..."}
+                      {field.value
+                        ? safeCompanies.find((c) => c.name === field.value)
+                            ?.name || field.value
+                        : "Seleccionar empresa..."}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </FormControl>
@@ -184,61 +191,45 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
                 <PopoverContent className="w-[300px] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Buscar o escribir empresa..."
+                      placeholder="Buscar empresa..."
                       value={companySearch}
                       onValueChange={setCompanySearch}
+                      className="h-9 text-xs"
                     />
                     <CommandList>
+                      <CommandEmpty className="text-xs p-2 text-muted-foreground">
+                        Empresa no encontrada.
+                      </CommandEmpty>
                       <CommandGroup>
-                        {COMPANIES.filter((c) =>
-                          c.toLowerCase().includes(companySearch.toLowerCase()),
-                        ).map((company) => (
-                          <CommandItem
-                            key={company}
-                            value={company}
-                            onSelect={() => {
-                              form.setValue("purchaserCompany", company);
-                              setOpenCompanyCombo(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                company === field.value
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
-                            {company}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-
-                      {/* LÓGICA PARA AGREGAR NUEVA EMPRESA COMPRADORA */}
-                      {companySearch &&
-                        !COMPANIES.some(
-                          (c) =>
-                            c.toLowerCase() === companySearch.toLowerCase(),
-                        ) && (
-                          <div className="p-2 border-t border-border bg-muted/50">
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="w-full h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => {
-                                form.setValue(
-                                  "purchaserCompany",
-                                  companySearch.toUpperCase(),
-                                );
+                        {safeCompanies
+                          .filter((c) =>
+                            c.name
+                              .toLowerCase()
+                              .includes((companySearch || "").toLowerCase()),
+                          )
+                          .map((company) => (
+                            <CommandItem
+                              key={company.id}
+                              value={company.name}
+                              className="text-xs"
+                              onSelect={() => {
+                                form.setValue("purchaserCompany", company.name);
                                 setOpenCompanyCombo(false);
                                 setCompanySearch("");
                               }}
                             >
-                              <Plus className="mr-1 h-3 w-3" />
-                              Usar &quot;{companySearch.toUpperCase()}&quot;
-                            </Button>
-                          </div>
-                        )}
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  company.name === field.value
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              {company.name}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
                     </CommandList>
                   </Command>
                 </PopoverContent>
@@ -256,7 +247,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
           name="invoiceNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nro. Comprobante</FormLabel>
+              <FormLabel className="text-xs">Nro. Comprobante</FormLabel>
               <FormControl>
                 <Input
                   placeholder="A-0001-XXXX"
@@ -277,7 +268,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
           name="issueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="mb-1">Fecha Emisión</FormLabel>
+              <FormLabel className="mb-1 text-xs">Fecha Emisión</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -319,7 +310,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
           name="dueDate"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="mb-1">Vencimiento</FormLabel>
+              <FormLabel className="mb-1 text-xs">Vencimiento</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -361,7 +352,7 @@ export function InvoiceGeneralData({ form, suppliers }: Props) {
           name="currency"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel className="mb-1">Moneda</FormLabel>
+              <FormLabel className="mb-1 text-xs">Moneda</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger className="bg-background h-9 text-xs">

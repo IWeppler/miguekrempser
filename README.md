@@ -1,45 +1,38 @@
 # 🚜 El Tolar - Sistema de Logística y Administración Agrícola
 
-Plataforma de gestión integral desarrollada a medida para productores agropecuarios. El sistema nació con el objetivo principal de digitalizar el control de stock en galpones y la logística de insumos, evolucionando para integrar módulos financieros y, recientemente, la planificación productiva de lotes.
+Plataforma de gestión integral de nivel empresarial desarrollada para productores agropecuarios. El sistema digitaliza el control de stock, la logística de insumos y la administración financiera, integrando ahora la planificación productiva de lotes.
 
-Reemplaza el uso de planillas dispersas y talonarios manuales por una interfaz centralizada, moderna y con soporte para múltiples depósitos.
+Reemplaza planillas dispersas y procesos manuales por una arquitectura centralizada, moderna y escalable con soporte para múltiples depósitos y operaciones en tiempo real.
+
+---
 
 ## 🚀 Funcionalidades Principales
 
 ### 1. 📦 Logística y Control de Stock (Core)
 
-El corazón del sistema. Permite saber exactamente qué hay en cada galpón y cómo se mueve.
-
 - **Multi-Depósito:** Gestión de inventario dividido por ubicaciones físicas (Galpones).
-- **Movimientos:** Registro de Ingresos (compras con factura) y Egresos (consumo/venta).
-- **Remitos Digitales (PDF):** Generación automática de remitos de salida con formato legal para transporte, listos para imprimir o enviar.
-- **Alertas:** Notificaciones automáticas de "Bajo Stock" para reposición de insumos críticos.
+- **Trazabilidad Total:** Registro detallado de Ingresos (compras/facturas) y Egresos (consumo/labores).
+- **Remitos Digitales (PDF):** Generación automática de documentos de salida con formato profesional para transporte.
+- **Alertas Inteligentes:** Notificaciones de "Stock Crítico" basadas en umbrales configurables por producto.
 
-### 2. 💰 Módulo Financiero y Compras
+### 2. 💰 Módulo Financiero y Cuentas Corrientes
 
-Administración de cuentas corrientes con proveedores y flujo de caja.
+- **Gestión de Comprobantes:** Carga modular de facturas con soporte para Fecha de Emisión y Fecha de Vencimiento.
+- **Multimoneda Dinámica:** Soporte nativo para ARS y USD con integración de cotización del dólar en tiempo real.
+- **Control de Deuda:** Panel de KPIs con Deuda Total, Vencimientos del Mes y Deuda Exigible.
+- **Digitalización:** Almacenamiento en la nube de comprobantes físicos (PDF/Imágenes).
 
-- **Registro de Facturas:** Carga de comprobantes de compra que alimentan la deuda.
-- **Gestión de Deuda:** Visualización clara de Deuda Total, Vencimientos del Mes y Deuda Exigible (Vencida).
-- **Multimoneda:** Soporte para seguimiento de cuentas y pagos en Pesos (ARS) y Dólares (USD).
-- **Historial de Pagos:** Tabla detallada con estado (Pendiente/Pagado), fechas de vencimiento, proveedor y funcionalidad para marcar facturas como pagadas.
+### 3. 🌱 Planificación de Lotes (Módulo Agronómico)
 
-### 3. 📊 Dashboard y Panel de Control
+- **Ciclo de Cultivos:** Seguimiento de campañas productivas desde la planificación hasta la cosecha.
+- **Costos Directos:** Imputación automática de insumos retirados de stock al costo de cada lote.
+- **Análisis de Rinde:** Cálculo de ROI y márgenes brutos por hectárea.
 
-Un centro de mando para el día a día del productor.
+### 4. 📊 Dashboard de Operaciones
 
-- **Agenda/Calendario:** Organización visual de tareas, vencimientos y fechas clave.
-- **Información en Tiempo Real:** Integración con APIs externas para mostrar Clima (ubicación actual) y Cotización del Dólar (Oficial/Blue).
-- **KPIs:** Tarjetas de resumen con deuda pendiente, alertas de stock y valoración del capital inmovilizado.
-- **Personalización:** Soporte nativo para Tema Claro y Oscuro según preferencia del usuario.
-
-### 4. 🌱 Planificación y Gestión de Lotes (Nuevo)
-
-Módulo agronómico para el seguimiento de la producción (en integración progresiva con stock y finanzas).
-
-- **Ciclo de Cultivos:** Trazabilidad de campañas (Planificado, En Curso, Cosechado).
-- **Costos y Labores:** Imputación de labores e insumos a lotes específicos para calcular el costo de producción.
-- **Análisis de Margen:** Cierre de campaña con cálculo de Rinde (Tn/Ha), Ingreso Bruto y ROI por lote.
+- **Agenda Agrícola:** Calendario visual de tareas, vencimientos de pagos y alertas de stock.
+- **Contexto Operativo:** Integración con APIs de Clima local y cotizaciones financieras.
+- **Modo Offline Aware:** Indicador visual de conectividad para asegurar la integridad de los datos en zonas rurales.
 
 ---
 
@@ -58,6 +51,30 @@ Arquitectura moderna, tipada y escalable.
 
 ---
 
+## 📂 Arquitectura del Proyecto
+
+El proyecto sigue un patrón de _Modularización por Dominio_ para maximizar la mantenibilidad:
+
+```
+src/
+ ├── app/             # Rutas y Layouts (Next.js)
+ ├── features/        # Módulos de Negocio (Lógica encapsulada)
+ │    ├── finance/    # Acciones, Hooks y Componentes de Finanzas
+ │    ├── stock/      # Gestión de productos e inventario
+ │    ├── moves/      # Lógica de movimientos y remitos
+ │    └── dashboard/  # Widgets y KPIs del panel principal
+ ├── shared/          # UI Components (Shadcn), Hooks globales y Libs
+ └── lib/             # Clientes de Supabase y utilidades core
+```
+
+**Patrones aplicados:**
+
+- **Modular UI:** Formularios complejos divididos en componentes atómicos (`InvoiceGeneralData`, `InvoiceItemsTable`).
+- **Separación de Concernimientos:** La lógica de negocio reside en Custom Hooks (`useCreateInvoice`), desacoplada de la vista.
+- **Server Actions:** Todas las mutaciones de datos se realizan mediante acciones del lado del servidor para mayor seguridad.
+
+---
+
 ## 📂 Estructura de Base de Datos (Resumen)
 
 El modelo de datos refleja los dos mundos del sistema: la logística y la producción.
@@ -68,44 +85,44 @@ El modelo de datos refleja los dos mundos del sistema: la logística y la produc
 - `invoices`: Cabecera de facturas y cuentas corrientes.
 - `suppliers`: Base de datos de proveedores y contratistas.
 - `lots` & `crop_cycles`: Definición de tierras y campañas productivas.
-- `labors`: Registro de actividades a campo.
 
 ---
 
-## 🚀 Instalación y Setup
+## ⚙️ Instalación y Configuración
 
-1.  **Clonar repositorio:**
+**Clonar el repositorio:**
 
-    ```bash
-    git clone [https://github.com/tu-usuario/agro-gestion.git](https://github.com/tu-usuario/agro-gestion.git)
-    ```
+```bash
+git clone https://github.com/tu-usuario/el-tolar-gestion.git
+cd el-tolar-gestion
+```
 
-2.  **Instalar dependencias:**
+**Instalar dependencias:**
 
-    ```bash
-    npm install
-    ```
+```bash
+npm install
+```
 
-3.  **Variables de Entorno:**
-    Configurar `.env.local` con las credenciales de Supabase y APIs externas (Clima/Dólar):
+**Variables de Entorno (`.env.local`):**
 
-    ```bash
-    NEXT_PUBLIC_SUPABASE_URL=...
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-    ```
+```env
+NEXT_PUBLIC_SUPABASE_URL=tu_url_supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
+```
 
-4.  **Correr el proyecto:**
-    ```bash
-    npm run dev
-    ```
+**Configuración de Supabase:**
 
----
-
-## 🔮 Roadmap / Próximos Pasos
-
-- **Integración Finanzas-Lotes:** Unificar el costo de las labores cargadas en el módulo de Lotes con el flujo de caja del módulo Financiero.
-- **Reportes Avanzados:** Exportación de movimientos de stock a Excel.
+- Crear un bucket en Storage llamado `invoices` para los comprobantes.
+- Asegurar que las políticas RLS estén activas para las tablas de negocio.
 
 ---
 
-_Desarrollado para gestión privada eficiente._ 🚜🌾
+## 🔮 Roadmap
+
+- [ ] **Sincronización Offline:** Caché local para permitir registros en zonas sin señal de celular.
+- [ ] **Reportes en Excel:** Exportación masiva de movimientos para contabilidad externa.
+- [ ] **Gestión de Maquinaria:** Seguimiento de horas/motor y mantenimiento preventivo.
+
+---
+
+_Desarrollado para la optimización de la cadena agroalimentaria de El Tolar SA. 🚜🌾_

@@ -32,9 +32,14 @@ import { useCreateInvoice } from "../hooks/use-create-invoice";
 interface Props {
   products: { id: string; name: string }[];
   suppliers: { id: string; name: string }[];
+  myCompanies: { id: string; name: string }[];
 }
 
-export function CreateInvoiceDialog({ products, suppliers }: Props) {
+export function CreateInvoiceDialog({
+  products,
+  suppliers,
+  myCompanies,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [openProductCombo, setOpenProductCombo] = useState<number | null>(null);
@@ -104,7 +109,11 @@ export function CreateInvoiceDialog({ products, suppliers }: Props) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             {/* 1. Datos de Cabecera  */}
-            <InvoiceGeneralData form={form} suppliers={suppliers} />
+            <InvoiceGeneralData
+              form={form}
+              suppliers={suppliers}
+              myCompanies={myCompanies}
+            />
 
             {/* TOGGLE DE STOCK PARA NOTAS DE CRÉDITO */}
             {currentVoucherType === "NC" && (
