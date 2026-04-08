@@ -11,7 +11,6 @@ import {
 } from "@/shared/ui/table";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
 import {
   Search,
   Pencil,
@@ -42,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
+import { TablePagination } from "@/shared/components/table-pagination";
 
 import { Invoice } from "../types";
 import { format } from "date-fns";
@@ -51,7 +51,7 @@ import { updateInvoiceStatus } from "../actions/update-invoice-status";
 import { deleteInvoice } from "../actions/delete-invoice";
 import { EditInvoiceDialog } from "./edit-invoice-dialog";
 
-// 1. Tipado estricto para los campos de ordenamiento
+// Tipado estricto para los campos de ordenamiento
 type SortField =
   | "invoice_number"
   | "supplier"
@@ -64,10 +64,10 @@ type SortField =
 type SortDirection = "asc" | "desc";
 
 interface Props {
-  products: { id: string; name: string }[];
-  suppliers: { id: string; name: string }[];
-  myCompanies: { id: string; name: string }[];
-  initialInvoices: Invoice[];
+  readonly products: { id: string; name: string }[];
+  readonly suppliers: { id: string; name: string }[];
+  readonly myCompanies: { id: string; name: string }[];
+  readonly initialInvoices: Invoice[];
 }
 
 interface SortIconProps {
@@ -75,6 +75,8 @@ interface SortIconProps {
   currentSortField: SortField;
   sortDirection: SortDirection;
 }
+
+const ITEMS_PER_PAGE = 10;
 
 const SortIcon = ({
   field,
@@ -97,6 +99,7 @@ export function InvoicesTable({
   myCompanies,
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [invoiceToEdit, setInvoiceToEdit] = useState<Invoice | null>(null);
@@ -118,7 +121,7 @@ export function InvoicesTable({
     const term = searchTerm.toLowerCase();
     const supplierName = inv.suppliers?.name?.toLowerCase() || "";
     const number = inv.invoice_number?.toLowerCase() || "";
-    const company = inv.purchaser_company?.toLowerCase() || ""; // Búsqueda también por empresa
+    const company = inv.purchaser_company?.toLowerCase() || "";
 
     return (
       supplierName.includes(term) ||
@@ -164,6 +167,27 @@ export function InvoicesTable({
     }
   });
 
+  // Lógica de Paginación
+  const totalPages = Math.ceil(sortedInvoices.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentItems = sortedInvoices.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
+
+  const goToNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -171,6 +195,7 @@ export function InvoicesTable({
       setSortField(field);
       setSortDirection("asc");
     }
+    setCurrentPage(1);
   };
 
   const handleViewDetails = (invoice: Invoice) => {
@@ -185,7 +210,7 @@ export function InvoicesTable({
     setIsDeleting(false);
     setInvoiceToDelete(null);
     if (!result.success) {
-      alert("Error al eliminar: " + result.error);
+      alert("Error al eliminar: " + result.error); // Idealmente usaríamos un Toast en lugar de un alert nativo.
     }
   };
 
@@ -261,12 +286,13 @@ export function InvoicesTable({
       {/* HEADER TOOLS */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-card p-3 rounded-lg border border-border shadow-sm">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
             placeholder="Buscar por proveedor, empresa o número..."
-            className="pl-9 h-10 bg-background border-input w-full"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-blue pl-9"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
 
@@ -280,239 +306,271 @@ export function InvoicesTable({
       </div>
 
       {/* TABLE */}
-      <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead
-                onClick={() => handleSort("invoice_number")}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center">
-                  Nro{" "}
-                  <SortIcon
-                    field="invoice_number"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead
-                onClick={() => handleSort("supplier")}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center">
-                  Proveedor{" "}
-                  <SortIcon
-                    field="supplier"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead
+                  onClick={() => handleSort("invoice_number")}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    Nro{" "}
+                    <SortIcon
+                      field="invoice_number"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead
+                  onClick={() => handleSort("supplier")}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    Proveedor{" "}
+                    <SortIcon
+                      field="supplier"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
 
-              {/* 3. Columna Empresa */}
-              <TableHead
-                onClick={() => handleSort("purchaser_company")}
-                className="cursor-pointer hidden md:table-cell"
-              >
-                <div className="flex items-center">
-                  Empresa{" "}
-                  <SortIcon
-                    field="purchaser_company"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
+                <TableHead
+                  onClick={() => handleSort("purchaser_company")}
+                  className="cursor-pointer hidden md:table-cell"
+                >
+                  <div className="flex items-center">
+                    Empresa{" "}
+                    <SortIcon
+                      field="purchaser_company"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
 
-              {/* 3. Columna Fecha Emisión */}
-              <TableHead
-                onClick={() => handleSort("date")}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center">
-                  Emisión{" "}
-                  <SortIcon
-                    field="date"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
+                <TableHead
+                  onClick={() => handleSort("date")}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    Emisión{" "}
+                    <SortIcon
+                      field="date"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
 
-              {/* Columna Vencimiento */}
-              <TableHead
-                onClick={() => handleSort("due_date")}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center">
-                  Vto.{" "}
-                  <SortIcon
-                    field="due_date"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
+                <TableHead
+                  onClick={() => handleSort("due_date")}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    Vto.{" "}
+                    <SortIcon
+                      field="due_date"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
 
-              <TableHead
-                onClick={() => handleSort("status")}
-                className="cursor-pointer"
-              >
-                <div className="flex items-center">
-                  Estado{" "}
-                  <SortIcon
-                    field="status"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead
-                onClick={() => handleSort("amount")}
-                className="cursor-pointer text-right"
-              >
-                <div className="flex items-center justify-end">
-                  Monto{" "}
-                  <SortIcon
-                    field="amount"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead className="w-[50px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedInvoices.length > 0 ? (
-              sortedInvoices.map((inv) => (
-                <TableRow key={inv.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    <button
-                      onClick={() => handleViewDetails(inv)}
-                      className="hover:underline"
+                <TableHead
+                  onClick={() => handleSort("status")}
+                  className="cursor-pointer"
+                >
+                  <div className="flex items-center">
+                    Estado{" "}
+                    <SortIcon
+                      field="status"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead
+                  onClick={() => handleSort("amount")}
+                  className="cursor-pointer text-right"
+                >
+                  <div className="flex items-center justify-end">
+                    Monto{" "}
+                    <SortIcon
+                      field="amount"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="w-[50px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentItems.length > 0 ? (
+                currentItems.map((inv) => {
+                  // Extracción de lógica de estado (Soluciona S3358 - Nested Ternary)
+                  let statusLabel = inv.status;
+                  let statusClasses = "cursor-pointer select-none ";
+
+                  if (inv.status === "paid") {
+                    statusLabel = "Pagado";
+                    statusClasses +=
+                      "bg-green-100 text-green-700 hover:bg-green-200";
+                  } else if (inv.status === "pending") {
+                    statusLabel = "Pendiente";
+                    statusClasses +=
+                      "bg-yellow-100 text-yellow-700 hover:bg-yellow-200";
+                  } else if (inv.status === "overdue") {
+                    statusLabel = "Vencido";
+                    statusClasses += "bg-red-100 text-red-700 hover:bg-red-200";
+                  }
+
+                  return (
+                    <TableRow
+                      key={inv.id}
+                      className="hover:bg-muted/50 transition-colors"
                     >
-                      {inv.invoice_number}
-                    </button>
-                  </TableCell>
+                      <TableCell className="font-medium">
+                        <button
+                          onClick={() => handleViewDetails(inv)}
+                          className="hover:underline"
+                        >
+                          {inv.invoice_number}
+                        </button>
+                      </TableCell>
 
-                  <TableCell>{inv.suppliers?.name || "-"}</TableCell>
+                      <TableCell>{inv.suppliers?.name || "-"}</TableCell>
 
-                  {/* 3. Celda de Empresa */}
-                  <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                    {inv.purchaser_company || "-"}
-                  </TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+                        {inv.purchaser_company || "-"}
+                      </TableCell>
 
-                  {/* 4. Celda NUEVA: Fecha de Emisión */}
-                  <TableCell className="text-sm">
-                    {inv.date ? format(new Date(inv.date), "dd/MM/yy") : "-"}
-                  </TableCell>
+                      <TableCell className="text-sm">
+                        {inv.date
+                          ? format(new Date(inv.date), "dd/MM/yy")
+                          : "-"}
+                      </TableCell>
 
-                  {/* 5. Celda Vencimiento */}
-                  <TableCell>
-                    {inv.due_date
-                      ? format(new Date(inv.due_date), "dd/MM/yy")
-                      : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {isUpdatingStatus === inv.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    ) : (
-                      <Badge
-                        className={`
-                                cursor-pointer select-none
-                                ${inv.status === "paid" ? "bg-green-100 text-green-700 hover:bg-green-200" : ""}
-                                ${inv.status === "pending" ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200" : ""}
-                                ${inv.status === "overdue" ? "bg-red-100 text-red-700 hover:bg-red-200" : ""}
-                            `}
-                        onClick={() =>
-                          handleStatusChange(
-                            inv.id,
-                            inv.status === "paid" ? "pending" : "paid",
-                          )
-                        }
-                      >
-                        {inv.status === "paid"
-                          ? "Pagado"
-                          : inv.status === "pending"
-                            ? "Pendiente"
-                            : inv.status}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {inv.currency === "USD" ? "u$s" : "$"}{" "}
-                    {inv.amount_total?.toLocaleString("es-AR", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Open menu</span>
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
+                      <TableCell>
+                        {inv.due_date
+                          ? format(new Date(inv.due_date), "dd/MM/yy")
+                          : "-"}
+                      </TableCell>
+
+                      <TableCell>
+                        {isUpdatingStatus === inv.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Badge
+                            className={statusClasses}
                             onClick={() =>
-                              navigator.clipboard.writeText(inv.invoice_number)
+                              handleStatusChange(
+                                inv.id,
+                                inv.status === "paid" ? "pending" : "paid",
+                              )
                             }
                           >
-                            Copiar Nro
-                          </DropdownMenuItem>
+                            {statusLabel}
+                          </Badge>
+                        )}
+                      </TableCell>
 
-                          <DropdownMenuItem
-                            onClick={() => handleViewDetails(inv)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" /> Ver Detalles
-                          </DropdownMenuItem>
+                      <TableCell className="text-right font-mono">
+                        {inv.currency === "USD" ? "u$s" : "$"}{" "}
+                        {inv.amount_total?.toLocaleString("es-AR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </TableCell>
 
-                          <DropdownMenuItem onClick={() => handleEdit(inv)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
-                          </DropdownMenuItem>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  navigator.clipboard.writeText(
+                                    inv.invoice_number,
+                                  )
+                                }
+                              >
+                                Copiar Nro
+                              </DropdownMenuItem>
 
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(inv.id, "paid")}
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4 text-green-600" />{" "}
-                            Marcar Pagado
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleStatusChange(inv.id, "pending")
-                            }
-                          >
-                            <XCircle className="mr-2 h-4 w-4 text-yellow-600" />{" "}
-                            Marcar Pendiente
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setInvoiceToDelete(inv)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                              <DropdownMenuItem
+                                onClick={() => handleViewDetails(inv)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" /> Ver Detalles
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem onClick={() => handleEdit(inv)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleStatusChange(inv.id, "paid")
+                                }
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4 text-green-600" />{" "}
+                                Marcar Pagado
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleStatusChange(inv.id, "pending")
+                                }
+                              >
+                                <XCircle className="mr-2 h-4 w-4 text-yellow-600" />{" "}
+                                Marcar Pendiente
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setInvoiceToDelete(inv)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    Sin resultados.
                   </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  Sin resultados.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          startIndex={startIndex}
+          endIndex={Math.min(
+            startIndex + ITEMS_PER_PAGE,
+            sortedInvoices.length,
+          )}
+          totalItems={sortedInvoices.length}
+          onPrevPage={goToPrevPage}
+          onNextPage={goToNextPage}
+          itemName="facturas"
+        />
       </div>
     </div>
   );

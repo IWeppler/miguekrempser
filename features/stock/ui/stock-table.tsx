@@ -29,15 +29,18 @@ import {
 } from "lucide-react";
 import { CreateProductDialog } from "./create-product-dialog";
 import { EditProductDialog } from "./edit-product-dialog";
+import { TablePagination } from "@/shared/components/table-pagination";
 import { Product } from "../types";
 
 interface Props {
-  initialData: Product[];
-  categories: string[];
+  readonly initialData: Product[];
+  readonly categories: string[];
 }
 
 type SortField = "name" | "category" | "location" | "stock" | "status";
 type SortDirection = "asc" | "desc";
+
+const ITEMS_PER_PAGE = 10;
 
 const SortIcon = ({
   field,
@@ -59,6 +62,7 @@ const SortIcon = ({
 };
 
 export function StockTable({ initialData, categories }: Props) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
@@ -96,15 +100,33 @@ export function StockTable({ initialData, categories }: Props) {
         return (a.location || "").localeCompare(b.location || "") * multiplier;
       case "stock":
         return (a.current_stock - b.current_stock) * multiplier;
-      case "status":
-        // Sort by "criticality" (ratio of current vs min stock)
+      case "status": {
         const ratioA = a.current_stock / (a.min_stock_alert || 1);
         const ratioB = b.current_stock / (b.min_stock_alert || 1);
         return (ratioA - ratioB) * multiplier;
+      }
       default:
         return 0;
     }
   });
+
+  // 3. Paginación Logic
+  const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentItems = sorted.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const goToNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPrevPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setCurrentPage(1);
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -113,6 +135,7 @@ export function StockTable({ initialData, categories }: Props) {
       setSortField(field);
       setSortDirection("asc");
     }
+    setCurrentPage(1);
   };
 
   const toggleCategory = (category: string) => {
@@ -121,12 +144,19 @@ export function StockTable({ initialData, categories }: Props) {
         ? prev.filter((c) => c !== category)
         : [...prev, category],
     );
+    setCurrentPage(1);
+  };
+
+  const toggleCriticalOnly = (val: boolean) => {
+    setShowCriticalOnly(val);
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
     setSelectedCategories([]);
     setShowCriticalOnly(false);
     setSearch("");
+    setCurrentPage(1);
   };
 
   const activeFiltersCount =
@@ -138,12 +168,12 @@ export function StockTable({ initialData, categories }: Props) {
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-card p-4 rounded-lg border border-border shadow-sm">
         {/* BUSCADOR */}
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar insumo..."
-            className="pl-9 bg-background border-input"
+            className="pl-9 h-10 bg-background border-input"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
           />
         </div>
 
@@ -154,7 +184,7 @@ export function StockTable({ initialData, categories }: Props) {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="gap-2 border-dashed relative border-border text-foreground hover:bg-accent"
+                className="gap-2 border-dashed relative border-border text-foreground hover:bg-accent h-10"
               >
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 Filtros
@@ -201,7 +231,7 @@ export function StockTable({ initialData, categories }: Props) {
                       id="critical"
                       checked={showCriticalOnly}
                       onCheckedChange={(checked) =>
-                        setShowCriticalOnly(checked as boolean)
+                        toggleCriticalOnly(checked as boolean)
                       }
                     />
                     <Label
@@ -264,7 +294,7 @@ export function StockTable({ initialData, categories }: Props) {
             <Badge
               variant="secondary"
               className="gap-1 bg-destructive/10 text-destructive hover:bg-destructive/20 cursor-pointer border-transparent"
-              onClick={() => setShowCriticalOnly(false)}
+              onClick={() => toggleCriticalOnly(false)}
             >
               Críticos <XCircle className="h-3 w-3" />
             </Badge>
@@ -291,191 +321,209 @@ export function StockTable({ initialData, categories }: Props) {
       )}
 
       {/* TABLA */}
-      <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort("name")}
-              >
-                <div className="flex items-center">
-                  Producto{" "}
-                  <SortIcon
-                    field="name"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort("category")}
-              >
-                <div className="flex items-center">
-                  Categoría{" "}
-                  <SortIcon
-                    field="category"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead
-                className="cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort("location")}
-              >
-                <div className="flex items-center">
-                  Ubicación{" "}
-                  <SortIcon
-                    field="location"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead className="w-[200px] text-muted-foreground">
-                <div className="flex items-center">
-                  Nivel de Stock
-                  <SortIcon
-                    field="stock"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead
-                className="text-right cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort("stock")}
-              >
-                <div className="flex items-center justify-end">
-                  Disponible{" "}
-                  <SortIcon
-                    field="stock"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead
-                className="text-center cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort("status")}
-              >
-                <div className="flex items-center justify-center">
-                  Estado{" "}
-                  <SortIcon
-                    field="status"
-                    currentSortField={sortField}
-                    sortDirection={sortDirection}
-                  />
-                </div>
-              </TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length > 0 ? (
-              sorted.map((item) => {
-                const stock = item.current_stock || 0;
-                const min = item.min_stock_alert || 0;
-
-                const max = Math.max(stock, min * 3);
-                const percentage = Math.min((stock / max) * 100, 100);
-                const isLow = stock <= min;
-                const isCritical = stock <= min / 2;
-
-                return (
-                  <TableRow
-                    key={item.id}
-                    className="border-border hover:bg-muted/50"
-                  >
-                    <TableCell className="font-medium text-foreground">
-                      {item.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="font-normal text-muted-foreground bg-muted hover:bg-muted/80"
-                      >
-                        {item.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {item.location || "-"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Progress
-                          value={percentage}
-                          className={`h-2 bg-muted ${
-                            isCritical
-                              ? "[&>div]:bg-destructive"
-                              : isLow
-                                ? "[&>div]:bg-orange-500"
-                                : "[&>div]:bg-primary"
-                          }`}
-                        />
-                        <span className="text-[10px] text-muted-foreground">
-                          Min: {min} {item.unit}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-foreground">
-                      {new Intl.NumberFormat("es-AR").format(stock)}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {item.unit}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {isCritical ? (
-                        <Badge
-                          variant="destructive"
-                          className="gap-1 bg-destructive/10 text-destructive hover:bg-destructive/20 border-0"
-                        >
-                          <AlertTriangle className="h-3 w-3" /> Crítico
-                        </Badge>
-                      ) : isLow ? (
-                        <Badge
-                          variant="outline"
-                          className="text-orange-600 border-orange-200 bg-orange-500/10 gap-1 dark:text-orange-400 dark:border-orange-500/30"
-                        >
-                          Bajo
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-primary border-primary/20 bg-primary/10"
-                        >
-                          Óptimo
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <EditProductDialog product={item} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            ) : (
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={7}
-                  className="h-32 text-center text-muted-foreground"
+      <div className="rounded-md border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead
+                  className="cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => handleSort("name")}
                 >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <PackageX className="h-8 w-8 text-muted-foreground/50" />
-                    <p>No se encontraron productos.</p>
-                    {activeFiltersCount === 0 && search === "" && (
-                      <p className="text-xs text-muted-foreground/70">
-                        Crea uno nuevo con el botón de arriba.
-                      </p>
-                    )}
+                  <div className="flex items-center">
+                    Producto{" "}
+                    <SortIcon
+                      field="name"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
                   </div>
-                </TableCell>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => handleSort("category")}
+                >
+                  <div className="flex items-center">
+                    Categoría{" "}
+                    <SortIcon
+                      field="category"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => handleSort("location")}
+                >
+                  <div className="flex items-center">
+                    Ubicación{" "}
+                    <SortIcon
+                      field="location"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="w-[200px] text-muted-foreground">
+                  <div className="flex items-center">
+                    Nivel de Stock
+                    <SortIcon
+                      field="stock"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="text-right cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => handleSort("stock")}
+                >
+                  <div className="flex items-center justify-end">
+                    Disponible{" "}
+                    <SortIcon
+                      field="stock"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="text-center cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => handleSort("status")}
+                >
+                  <div className="flex items-center justify-center">
+                    Estado{" "}
+                    <SortIcon
+                      field="status"
+                      currentSortField={sortField}
+                      sortDirection={sortDirection}
+                    />
+                  </div>
+                </TableHead>
+                <TableHead></TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {currentItems.length > 0 ? (
+                currentItems.map((item) => {
+                  const stock = item.current_stock || 0;
+                  const min = item.min_stock_alert || 0;
+
+                  const max = Math.max(stock, min * 3);
+                  const percentage = Math.min((stock / max) * 100, 100);
+                  const isLow = stock <= min;
+                  const isCritical = stock <= min / 2;
+
+                  let progressColorClass = "[&>div]:bg-primary";
+                  let statusBadge = (
+                    <Badge
+                      variant="outline"
+                      className="text-primary border-primary/20 bg-primary/10"
+                    >
+                      Óptimo
+                    </Badge>
+                  );
+
+                  if (isCritical) {
+                    progressColorClass = "[&>div]:bg-destructive";
+                    statusBadge = (
+                      <Badge
+                        variant="destructive"
+                        className="gap-1 bg-destructive/10 text-destructive hover:bg-destructive/20 border-0"
+                      >
+                        <AlertTriangle className="h-3 w-3" /> Crítico
+                      </Badge>
+                    );
+                  } else if (isLow) {
+                    progressColorClass = "[&>div]:bg-orange-500";
+                    statusBadge = (
+                      <Badge
+                        variant="outline"
+                        className="text-orange-600 border-orange-200 bg-orange-500/10 gap-1 dark:text-orange-400 dark:border-orange-500/30"
+                      >
+                        Bajo
+                      </Badge>
+                    );
+                  }
+
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className="border-border hover:bg-muted/50 transition-colors"
+                    >
+                      <TableCell className="font-medium text-foreground">
+                        {item.name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className="font-normal text-muted-foreground bg-muted hover:bg-muted/80"
+                        >
+                          {item.category}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {item.location || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Progress
+                            value={percentage}
+                            className={`h-2 bg-muted ${progressColorClass}`}
+                          />
+                          <span className="text-[10px] text-muted-foreground">
+                            Min: {min} {item.unit}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-foreground">
+                        {new Intl.NumberFormat("es-AR").format(stock)}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {item.unit}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {statusBadge}
+                      </TableCell>
+                      <TableCell>
+                        <EditProductDialog product={item} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={7}
+                    className="h-32 text-center text-muted-foreground"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <PackageX className="h-8 w-8 text-muted-foreground/50" />
+                      <p>No se encontraron productos.</p>
+                      {activeFiltersCount === 0 && search === "" && (
+                        <p className="text-xs text-muted-foreground/70">
+                          Crea uno nuevo con el botón de arriba.
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          startIndex={startIndex}
+          endIndex={Math.min(startIndex + ITEMS_PER_PAGE, sorted.length)}
+          totalItems={sorted.length}
+          onPrevPage={goToPrevPage}
+          onNextPage={goToNextPage}
+          itemName="productos"
+        />
       </div>
     </div>
   );

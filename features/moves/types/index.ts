@@ -25,3 +25,22 @@ export interface IssuerCompany {
   cai_number?: string;
   cai_expiration?: string;
 }
+
+
+export interface MovementItem {
+  product_id: string;
+  quantity: number;
+  products: { name: string } | null;
+}
+
+export interface RemitoRow {
+  id: string;
+  created_at: string;
+  order_number: string;
+  technician: string;
+  destination: string;
+  driver: string;
+  plate: string;
+  observations: string | null;
+  movements: MovementItem[];
+}

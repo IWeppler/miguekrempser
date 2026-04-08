@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { type Product } from "@/features/stock/types";
-import { StockView } from "@/features/stock/ui/stock-view"; // Importamos el nuevo componente
+import { StockView } from "@/features/stock/ui/stock-view";
 
 async function getDolarExchangeRate() {
   try {

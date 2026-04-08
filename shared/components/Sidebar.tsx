@@ -18,7 +18,7 @@ import { Button } from "@/shared/ui/button";
 const menuItems = [
   { name: "Panel", href: "/", icon: LayoutDashboard },
   { name: "Stock", href: "/stock", icon: Package },
-  { name: "Movimientos", href: "/movimientos", icon: History },
+  { name: "Remitos", href: "/movimientos", icon: History },
   { name: "Finanzas", href: "/finanzas", icon: FileText },
   { name: "Lotes", href: "/lotes", icon: Map },
 ];

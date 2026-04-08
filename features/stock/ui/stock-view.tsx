@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { StockTable } from "@/features/stock/ui/stock-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Switch } from "@/shared/ui/switch";
 import { Label } from "@/shared/ui/label";
-import { Package, AlertTriangle, Layers } from "lucide-react";
+import { Button } from "@/shared/ui/button";
+import { Package, AlertTriangle, Layers, History } from "lucide-react";
 import { type Product } from "@/features/stock/types";
 
 interface Props {
-  initialData: Product[];
-  dollarRate: number;
+  readonly initialData: Product[];
+  readonly dollarRate: number;
 }
 
 export function StockView({ initialData, dollarRate }: Props) {
@@ -62,19 +64,23 @@ export function StockView({ initialData, dollarRate }: Props) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER SIMPLIFICADO */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+      {/* HEADER SIMPLIFICADO CON BOTÓN DE HISTORIAL */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Inventario
           </h1>
           <p className="text-muted-foreground">Control de stock e insumos.</p>
         </div>
-
-        {/* Solo dejamos el Badge informativo, el switch se mudó a la card */}
-        <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20 h-fit self-start md:self-auto">
-          Dólar Ref: ${dollarRate}
-        </div>
+        <Link href="/stock/moves">
+          <Button
+            variant="outline"
+            className="gap-2 shadow-sm bg-background w-full md:w-auto"
+          >
+            <History className="h-4 w-4" />
+            Historial de Movimientos
+          </Button>
+        </Link>
       </div>
 
       {/* KPI CARDS */}
@@ -131,14 +137,18 @@ export function StockView({ initialData, dollarRate }: Props) {
           </CardContent>
         </Card>
 
-        {/* 4. Valorizado Total (CON SWITCH INTEGRADO) */}
+        {/* 4. Valorizado Total (CON SWITCH INTEGRADO Y PILL DE DÓLAR) */}
         <Card className="shadow-sm border-l-4 border-l-green-600 bg-card min-w-[85%] md:min-w-0 snap-center transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Valorizado Total
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Valorizado Total
+              </CardTitle>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-primary/10 text-primary uppercase tracking-wider">
+                ${dollarRate}
+              </span>
+            </div>
 
-            {/* SWITCH CHIQUITO AQUÍ */}
             <div className="flex items-center gap-2">
               <Label
                 htmlFor="mini-switch"
@@ -150,7 +160,7 @@ export function StockView({ initialData, dollarRate }: Props) {
                 id="mini-switch"
                 checked={showInArs}
                 onCheckedChange={setShowInArs}
-                className="scale-75 data-[state=checked]:bg-green-600 h-5 w-9"
+                className="scale-75 data-[state=checked]:bg-green-600 h-5 w-9 m-0"
               />
             </div>
           </CardHeader>
