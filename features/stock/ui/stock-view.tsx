@@ -2,13 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PDFDownloadLink } from "@react-pdf/renderer";
 import { StockTable } from "@/features/stock/ui/stock-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Switch } from "@/shared/ui/switch";
 import { Label } from "@/shared/ui/label";
 import { Button } from "@/shared/ui/button";
-import { Package, AlertTriangle, Layers, History } from "lucide-react";
+import {
+  Package,
+  AlertTriangle,
+  Layers,
+  History,
+  Download,
+  Loader2,
+} from "lucide-react";
 import { type Product } from "@/features/stock/types";
+import { StockDocument } from "@/features/stock/components/stock-pdf";
 
 interface Props {
   readonly initialData: Product[];
@@ -18,7 +27,12 @@ interface Props {
 export function StockView({ initialData, dollarRate }: Props) {
   const [showInArs, setShowInArs] = useState(false);
 
-  // 1. CÁLCULOS KPI
+  // 1. FILTRO PARA DESCARGA DE STOCK
+  const positiveStockProducts = initialData.filter(
+    (p) => (p.current_stock || 0) > 0,
+  );
+
+  // 2. CÁLCULOS KPI
   const totalItems = initialData.length;
   const criticalStockCount = initialData.filter(
     (p) => (p.current_stock || 0) <= (p.min_stock_alert || 0),
@@ -29,26 +43,19 @@ export function StockView({ initialData, dollarRate }: Props) {
   ).filter(Boolean);
   const categoriesCount = uniqueCategories.length;
 
-  // 2. VALORIZACIÓN DINÁMICA
+  // 3. VALORIZACIÓN DINÁMICA
   const totalValuation = initialData.reduce((acc, curr) => {
     const stock = Number(curr.current_stock || 0);
     const cost = Number(curr.average_cost || 0);
-    let itemValue = 0;
 
-    if (showInArs) {
-      // Ver en PESOS
-      if (curr.currency === "USD") {
-        itemValue = cost * dollarRate * stock;
-      } else {
-        itemValue = cost * stock;
-      }
-    } else {
-      // Ver en DÓLARES
-      if (curr.currency === "ARS") {
-        itemValue = (cost / dollarRate) * stock;
-      } else {
-        itemValue = cost * stock;
-      }
+    // Calculamos el valor base (sin importar la moneda)
+    let itemValue = cost * stock;
+
+    // Aplicamos la conversión SOLO si hay discrepancia entre la vista y la moneda del producto
+    if (showInArs && curr.currency === "USD") {
+      itemValue *= dollarRate; // Pasar de USD a ARS
+    } else if (!showInArs && curr.currency === "ARS") {
+      itemValue /= dollarRate; // Pasar de ARS a USD
     }
 
     return acc + itemValue;
@@ -64,7 +71,7 @@ export function StockView({ initialData, dollarRate }: Props) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* HEADER SIMPLIFICADO CON BOTÓN DE HISTORIAL */}
+      {/* HEADER SIMPLIFICADO CON ACCIONES */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -72,15 +79,37 @@ export function StockView({ initialData, dollarRate }: Props) {
           </h1>
           <p className="text-muted-foreground">Control de stock e insumos.</p>
         </div>
-        <Link href="/stock/moves">
-          <Button
-            variant="outline"
-            className="gap-2 shadow-sm bg-background w-full md:w-auto"
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* BOTÓN DE DESCARGA PDF */}
+          <PDFDownloadLink
+            document={<StockDocument products={positiveStockProducts} />}
+            fileName={`Control_Fisico_${new Date().toISOString().split("T")[0]}.pdf`}
+            className="inline-flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium bg-[#008060] hover:bg-[#006e52] text-white rounded-md transition-colors w-full sm:w-auto"
           >
-            <History className="h-4 w-4" />
-            Historial de Movimientos
-          </Button>
-        </Link>
+            {({ loading }) => (
+              <>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {loading ? "Generando PDF..." : "Descargar Stock"}
+              </>
+            )}
+          </PDFDownloadLink>
+
+          {/* BOTÓN DE HISTORIAL */}
+          <Link href="/stock/moves" className="w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="gap-2 shadow-sm bg-background w-full h-10"
+            >
+              <History className="h-4 w-4" />
+              Historial
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* KPI CARDS */}
