@@ -2,7 +2,7 @@ name: Supabase Keep Alive Cron
 
 on:
   schedule:
-    - cron: "0 0 */3 * *"
+    - cron: "0 */12 * * *"
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "20"
 
       - name: Ejecutar script de Ping
         env:
