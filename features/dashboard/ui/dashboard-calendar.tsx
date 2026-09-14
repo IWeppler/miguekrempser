@@ -54,7 +54,7 @@ const TIME_OPTIONS = Array.from({ length: 96 }).map((_, i) => {
     .padStart(2, "0")}`;
 });
 
-export function DashboardCalendar() {
+export function DashboardCalendar({ campaign }: { readonly campaign: string }) {
   const supabase = createClient();
 
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -92,6 +92,7 @@ export function DashboardCalendar() {
           "id, due_date, invoice_number, amount_total, currency, suppliers(name)",
         )
         .eq("status", "pending")
+        .eq("campaign", campaign)
         .gte("due_date", start)
         .lte("due_date", end);
 
@@ -156,7 +157,7 @@ export function DashboardCalendar() {
     return () => {
       isMounted = false;
     };
-  }, [currentMonth, supabase]);
+  }, [currentMonth, supabase, campaign]);
 
   const selectedDayItems = items.filter(
     (item) => date && isSameDay(item.date, date),

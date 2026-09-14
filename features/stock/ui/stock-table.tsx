@@ -35,6 +35,7 @@ import { Product } from "../types";
 interface Props {
   readonly initialData: Product[];
   readonly categories: string[];
+  readonly readOnly?: boolean;
 }
 
 type SortField = "name" | "category" | "location" | "stock" | "status";
@@ -61,7 +62,11 @@ const SortIcon = ({
   );
 };
 
-export function StockTable({ initialData, categories }: Props) {
+export function StockTable({
+  initialData,
+  categories,
+  readOnly = false,
+}: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -282,7 +287,7 @@ export function StockTable({ initialData, categories }: Props) {
             </PopoverContent>
           </Popover>
 
-          <CreateProductDialog />
+          {!readOnly && <CreateProductDialog />}
         </div>
       </div>
 
@@ -487,7 +492,7 @@ export function StockTable({ initialData, categories }: Props) {
                         {statusBadge}
                       </TableCell>
                       <TableCell>
-                        <EditProductDialog product={item} />
+                        {!readOnly && <EditProductDialog product={item} />}
                       </TableCell>
                     </TableRow>
                   );

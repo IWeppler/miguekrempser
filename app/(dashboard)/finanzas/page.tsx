@@ -3,6 +3,8 @@ import { InvoicesTable } from "@/features/finance/ui/invoices-table";
 import { startOfMonth, endOfMonth } from "date-fns";
 import { FinanceStats } from "@/features/finance/ui/finance-stats";
 import { Invoice } from "@/features/finance/types";
+import { getCampaignContext } from "@/features/campaigns/lib/get-campaign";
+import { ClosedCampaignBanner } from "@/features/campaigns/ui/closed-campaign-banner";
 
 type RawSupplier = { id: string; name: string };
 
@@ -26,6 +28,7 @@ const getAmount = (inv: Invoice) => Number(inv.amount_total ?? 0);
 
 export default async function FinanzasPage() {
   const supabase = await createClient();
+  const campaign = await getCampaignContext();
 
   const [productsRes, invoicesRes, suppliersRes, myCompaniesRes] =
     await Promise.all([
@@ -33,6 +36,7 @@ export default async function FinanzasPage() {
       supabase
         .from("invoices")
         .select("*, suppliers(id, name)")
+        .eq("campaign", campaign.selected)
         .order("date", { ascending: true }),
       supabase.from("suppliers").select("id, name").order("name"),
       supabase.from("my_companies").select("id, name").order("name"),
@@ -125,6 +129,10 @@ export default async function FinanzasPage() {
         </p>
       </div>
 
+      {campaign.isClosed && (
+        <ClosedCampaignBanner campaign={campaign.selected} />
+      )}
+
       {/* COMPONENTE INTERACTIVO DE ESTADÍSTICAS */}
       <FinanceStats
         totalDebt={totalDebt}
@@ -140,6 +148,7 @@ export default async function FinanzasPage() {
           initialInvoices={tableInvoices}
           suppliers={suppliers}
           myCompanies={myCompanies}
+          readOnly={campaign.isClosed}
         />
       </div>
     </div>

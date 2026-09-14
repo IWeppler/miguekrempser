@@ -18,14 +18,22 @@ import {
 } from "lucide-react";
 import { type Product } from "@/features/stock/types";
 import { StockDocument } from "@/features/stock/components/stock-pdf";
+import { useMounted } from "@/shared/hooks/use-mounted";
 
 interface Props {
   readonly initialData: Product[];
   readonly dollarRate: number;
+  readonly readOnly?: boolean;
 }
 
-export function StockView({ initialData, dollarRate }: Props) {
+export function StockView({
+  initialData,
+  dollarRate,
+  readOnly = false,
+}: Props) {
   const [showInArs, setShowInArs] = useState(false);
+  // PDFDownloadLink solo funciona en el navegador; evitamos renderizarlo en SSR
+  const mounted = useMounted();
 
   // 1. FILTRO PARA DESCARGA DE STOCK
   const positiveStockProducts = initialData.filter(
@@ -82,22 +90,32 @@ export function StockView({ initialData, dollarRate }: Props) {
 
         <div className="flex flex-col sm:flex-row gap-3">
           {/* BOTÓN DE DESCARGA PDF */}
-          <PDFDownloadLink
-            document={<StockDocument products={positiveStockProducts} />}
-            fileName={`Control_Fisico_${new Date().toISOString().split("T")[0]}.pdf`}
-            className="inline-flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium bg-[#008060] hover:bg-[#006e52] text-white rounded-md transition-colors w-full sm:w-auto"
-          >
-            {({ loading }) => (
-              <>
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                {loading ? "Generando PDF..." : "Descargar Stock"}
-              </>
-            )}
-          </PDFDownloadLink>
+          {mounted ? (
+            <PDFDownloadLink
+              document={<StockDocument products={positiveStockProducts} />}
+              fileName={`Control_Fisico_${new Date().toISOString().split("T")[0]}.pdf`}
+              className="inline-flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium bg-[#008060] hover:bg-[#006e52] text-white rounded-md transition-colors w-full sm:w-auto"
+            >
+              {({ loading }) => (
+                <>
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {loading ? "Generando PDF..." : "Descargar Stock"}
+                </>
+              )}
+            </PDFDownloadLink>
+          ) : (
+            <Button
+              disabled
+              className="h-10 w-full sm:w-auto bg-[#008060] text-white"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Descargar Stock
+            </Button>
+          )}
 
           {/* BOTÓN DE HISTORIAL */}
           <Link href="/stock/moves" className="w-full sm:w-auto">
@@ -204,7 +222,11 @@ export function StockView({ initialData, dollarRate }: Props) {
         </Card>
       </div>
 
-      <StockTable initialData={initialData} categories={uniqueCategories} />
+      <StockTable
+        initialData={initialData}
+        categories={uniqueCategories}
+        readOnly={readOnly}
+      />
     </div>
   );
 }

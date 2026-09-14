@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useMounted } from "@/shared/hooks/use-mounted";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { Package, Download, Loader2, Search, Plus } from "lucide-react";
@@ -30,6 +31,7 @@ export interface RemitoRow {
 interface Props {
   readonly remitos: RemitoRow[];
   readonly issuer: IssuerCompany;
+  readonly readOnly?: boolean;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -54,9 +56,11 @@ const mapToRemitoSchema = (
     })) || [],
 });
 
-export function RemitosTable({ remitos, issuer }: Props) {
+export function RemitosTable({ remitos, issuer, readOnly = false }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  // PDFDownloadLink solo funciona en el navegador; evitamos renderizarlo en SSR
+  const mounted = useMounted();
 
   if (!remitos || remitos.length === 0) {
     return (
@@ -122,7 +126,7 @@ export function RemitosTable({ remitos, issuer }: Props) {
           />
         </div>
 
-        <div className="flex-none w-full sm:w-auto">
+        <div className="flex-none w-full sm:w-auto" hidden={readOnly}>
           {/* Botón Crear Remito (Estilizado de color verde como el de la imagen) */}
           <button
             type="button"
@@ -207,34 +211,36 @@ export function RemitosTable({ remitos, issuer }: Props) {
                     </td>
 
                     <td className="px-4 py-3 text-right">
-                      <PDFDownloadLink
-                        document={
-                          <RemitoDocument
-                            data={mapToRemitoSchema(remito, issuer.id)}
-                            products={
-                              remito.movements?.map((i) => ({
-                                id: i.product_id,
-                                name: i.products?.name || "Desconocido",
-                              })) || []
-                            }
-                            createdAt={remito.created_at}
-                            issuer={issuer}
-                          />
-                        }
-                        fileName={`Remito-${remito.order_number}.pdf`}
-                        className="inline-flex items-center justify-center gap-2 h-8 px-3 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
-                      >
-                        {({ loading }) => (
-                          <>
-                            {loading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Download className="h-3.5 w-3.5" />
-                            )}
-                            {loading ? "Preparando..." : "Descargar"}
-                          </>
-                        )}
-                      </PDFDownloadLink>
+                      {mounted && (
+                        <PDFDownloadLink
+                          document={
+                            <RemitoDocument
+                              data={mapToRemitoSchema(remito, issuer.id)}
+                              products={
+                                remito.movements?.map((i) => ({
+                                  id: i.product_id,
+                                  name: i.products?.name || "Desconocido",
+                                })) || []
+                              }
+                              createdAt={remito.created_at}
+                              issuer={issuer}
+                            />
+                          }
+                          fileName={`Remito-${remito.order_number}.pdf`}
+                          className="inline-flex items-center justify-center gap-2 h-8 px-3 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors"
+                        >
+                          {({ loading }) => (
+                            <>
+                              {loading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Download className="h-3.5 w-3.5" />
+                              )}
+                              {loading ? "Preparando..." : "Descargar"}
+                            </>
+                          )}
+                        </PDFDownloadLink>
+                      )}
                     </td>
                   </tr>
                 ))

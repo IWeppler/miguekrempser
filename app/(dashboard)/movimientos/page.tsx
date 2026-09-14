@@ -1,9 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { RemitosTable } from "@/features/moves/ui/remitos-table";
 import { FileText } from "lucide-react";
+import { getCampaignContext } from "@/features/campaigns/lib/get-campaign";
+import { ClosedCampaignBanner } from "@/features/campaigns/ui/closed-campaign-banner";
 
 export default async function HistorialRemitosPage() {
   const supabase = await createClient();
+  const campaign = await getCampaignContext();
 
   const { data: remitosData } = await supabase
     .from("remitos")
@@ -17,6 +20,7 @@ export default async function HistorialRemitosPage() {
       )
     `,
     )
+    .eq("campaign", campaign.selected)
     .order("created_at", { ascending: false })
     .limit(5000);
 
@@ -54,8 +58,16 @@ export default async function HistorialRemitosPage() {
         </div>
       </div>
 
+      {campaign.isClosed && (
+        <ClosedCampaignBanner campaign={campaign.selected} />
+      )}
+
       <div className="">
-        <RemitosTable remitos={remitosData || []} issuer={safeIssuer} />
+        <RemitosTable
+          remitos={remitosData || []}
+          issuer={safeIssuer}
+          readOnly={campaign.isClosed}
+        />
       </div>
     </div>
   );

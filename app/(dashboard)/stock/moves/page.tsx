@@ -6,6 +6,8 @@ import { Plus } from "lucide-react";
 import { CreateAdjustmentDialog } from "@/features/moves/ui/create-adjustment-dialog";
 import { MovementsTable } from "@/features/moves/ui/movements-table";
 import { Movement } from "@/features/moves/types";
+import { getCampaignContext } from "@/features/campaigns/lib/get-campaign";
+import { ClosedCampaignBanner } from "@/features/campaigns/ui/closed-campaign-banner";
 
 type SearchParams = Promise<{
   query?: string;
@@ -18,6 +20,7 @@ export default async function HistorialPage({
   readonly searchParams: SearchParams;
 }) {
   const supabase = await createClient();
+  const campaign = await getCampaignContext();
   const params = await searchParams;
 
   const query = params.query || "";
@@ -34,6 +37,7 @@ export default async function HistorialPage({
       )
     `,
     )
+    .eq("campaign", campaign.selected)
     .order("created_at", { ascending: false })
     .limit(1000);
 
@@ -64,15 +68,21 @@ export default async function HistorialPage({
             Bitácora completa de ingresos y egresos de stock.
           </p>
         </div>
-        <div className="flex gap-3">
-          <CreateAdjustmentDialog products={products || []} />
-          <Link href="/movimientos/nuevo">
-            <Button className="bg-primary hover:bg-primary/90 shadow-sm h-9 px-4 text-sm text-primary-foreground">
-              <Plus className="mr-2 h-4 w-4" /> Nuevo Remito
-            </Button>
-          </Link>
-        </div>
+        {!campaign.isClosed && (
+          <div className="flex gap-3">
+            <CreateAdjustmentDialog products={products || []} />
+            <Link href="/movimientos/nuevo">
+              <Button className="bg-primary hover:bg-primary/90 shadow-sm h-9 px-4 text-sm text-primary-foreground">
+                <Plus className="mr-2 h-4 w-4" /> Nuevo Remito
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
+
+      {campaign.isClosed && (
+        <ClosedCampaignBanner campaign={campaign.selected} />
+      )}
 
       {/* FILTROS Y TABLA */}
       <div className="space-y-4">

@@ -7,6 +7,8 @@ import { KpiCards } from "@/features/dashboard/ui/kpi-cards";
 import { QuickActions } from "@/features/dashboard/ui/quick-actions";
 import { RecentMovementsTable } from "@/features/dashboard/ui/recent-movements-table";
 import { DollarCard } from "@/features/dashboard/ui/dollar-card";
+import { getCampaignContext } from "@/features/campaigns/lib/get-campaign";
+import { ClosedCampaignBanner } from "@/features/campaigns/ui/closed-campaign-banner";
 
 // TYPES
 import { type Product } from "@/features/stock/types";
@@ -45,6 +47,7 @@ type RawInvoiceData = {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const campaign = await getCampaignContext();
 
   // 1. CARGA DE DATOS
   const [productsRes, movementsRes, invoicesRes] = await Promise.all([
@@ -58,6 +61,7 @@ export default async function DashboardPage() {
       .select(
         "id, created_at, type, quantity, technician_name, product_id, description, products(name, category)",
       )
+      .eq("campaign", campaign.selected)
       .order("created_at", { ascending: false })
       .limit(8),
     supabase
@@ -76,7 +80,8 @@ export default async function DashboardPage() {
         suppliers(id, name)
       `,
       )
-      .eq("status", "pending"),
+      .eq("status", "pending")
+      .eq("campaign", campaign.selected),
   ]);
 
   // 2. NORMALIZACIÓN
@@ -131,6 +136,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {campaign.isClosed && (
+        <ClosedCampaignBanner campaign={campaign.selected} />
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* COLUMNA IZQUIERDA (Operativa) */}
         <div className="lg:col-span-3 space-y-6">
@@ -155,10 +163,10 @@ export default async function DashboardPage() {
         {/* COLUMNA DERECHA (Gestión) */}
         <div className="flex flex-col gap-6">
           <div className="w-full h-fit">
-            <DashboardCalendar />
+            <DashboardCalendar campaign={campaign.selected} />
           </div>
           <div className="min-h-[300px] h-fit">
-            <ExpenseDonut />
+            <ExpenseDonut campaign={campaign.selected} />
           </div>
         </div>
       </div>

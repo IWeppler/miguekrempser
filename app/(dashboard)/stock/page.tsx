@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { type Product } from "@/features/stock/types";
 import { StockView } from "@/features/stock/ui/stock-view";
+import { getCampaignContext } from "@/features/campaigns/lib/get-campaign";
+import { ClosedCampaignBanner } from "@/features/campaigns/ui/closed-campaign-banner";
 
 async function getDolarExchangeRate() {
   try {
@@ -18,6 +20,7 @@ async function getDolarExchangeRate() {
 
 export default async function StockPage() {
   const supabase = await createClient();
+  const campaign = await getCampaignContext();
 
   // 1. CARGA PARALELA
   const [productsRes, dollarRate] = await Promise.all([
@@ -28,11 +31,43 @@ export default async function StockPage() {
   const rawProducts = productsRes.data || [];
 
   // Casting seguro
-  const productList = rawProducts.map((p) => ({
+  let productList = rawProducts.map((p) => ({
     ...p,
     currency: p.currency || "USD",
   })) as Product[];
 
+  // Campaña cerrada: mostramos el stock final guardado al cierre
+  if (campaign.isClosed) {
+    const { data: closings } = await supabase
+      .from("campaign_stock_closings")
+      .select("*")
+      .eq("campaign", campaign.selected)
+      .order("product_name");
+
+    productList = (closings || []).map((c) => ({
+      id: c.product_id ?? c.id,
+      name: c.product_name,
+      category: c.category ?? "",
+      unit: c.unit ?? "Unidad",
+      location: c.location,
+      current_stock: Number(c.final_stock ?? 0),
+      min_stock_alert: 0,
+      average_cost: Number(c.average_cost ?? 0),
+      currency: (c.currency || "USD") as Product["currency"],
+    }));
+  }
+
   // 2. RENDERIZAR VISTA CLIENTE
-  return <StockView initialData={productList} dollarRate={dollarRate} />;
+  return (
+    <div className="space-y-4">
+      {campaign.isClosed && (
+        <ClosedCampaignBanner campaign={campaign.selected} />
+      )}
+      <StockView
+        initialData={productList}
+        dollarRate={dollarRate}
+        readOnly={campaign.isClosed}
+      />
+    </div>
+  );
 }

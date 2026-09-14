@@ -91,7 +91,12 @@ const menuItems = [
   { name: "Finanzas", href: "/finanzas", icon: FileText },
 ];
 
-export function Header() {
+interface HeaderProps {
+  readonly activeCampaign: string;
+  readonly campaignSelector?: React.ReactNode;
+}
+
+export function Header({ activeCampaign, campaignSelector }: HeaderProps) {
   const pathname = usePathname();
   const isOnline = useOnlineStatus();
   const [mounted, setMounted] = useState(false);
@@ -237,6 +242,7 @@ export function Header() {
           .from("invoices")
           .select("id, invoice_number, amount_total, suppliers(name)")
           .eq("status", "overdue")
+          .eq("campaign", activeCampaign)
           .limit(5);
 
         if (!invoiceError && invoicesData) {
@@ -267,7 +273,7 @@ export function Header() {
     }
 
     fetchNotifications();
-  }, [supabase, user]);
+  }, [supabase, user, activeCampaign]);
 
   // --- CALCULAR NO LEÍDAS ---
   const unreadCount = notifications.filter(
@@ -379,6 +385,7 @@ export function Header() {
 
       {/* --- DESKTOP RIGHT --- */}
       <div className="flex items-center gap-4 ml-auto">
+        {campaignSelector}
         {mounted && !isOnline && (
           <span className="flex items-center gap-1 text-xs text-destructive animate-pulse">
             <WifiOff size={14} />

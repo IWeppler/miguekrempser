@@ -33,7 +33,7 @@ interface ChartData {
   [key: string]: string | number;
 }
 
-export function ExpenseDonut() {
+export function ExpenseDonut({ campaign }: { readonly campaign: string }) {
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
@@ -44,7 +44,8 @@ export function ExpenseDonut() {
         const { data: movements, error } = await supabase
           .from("movements")
           .select("quantity, products(category)")
-          .eq("type", "OUT");
+          .eq("type", "OUT")
+          .eq("campaign", campaign);
 
         if (error) throw error;
 
@@ -89,7 +90,7 @@ export function ExpenseDonut() {
     };
 
     fetchData();
-  }, [supabase]);
+  }, [supabase, campaign]);
 
   const totalValue = useMemo(
     () => data.reduce((acc, curr) => acc + curr.value, 0),

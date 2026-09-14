@@ -68,6 +68,7 @@ interface Props {
   readonly suppliers: { id: string; name: string }[];
   readonly myCompanies: { id: string; name: string }[];
   readonly initialInvoices: Invoice[];
+  readonly readOnly?: boolean;
 }
 
 interface SortIconProps {
@@ -97,6 +98,7 @@ export function InvoicesTable({
   suppliers,
   initialInvoices,
   myCompanies,
+  readOnly = false,
 }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -296,13 +298,15 @@ export function InvoicesTable({
           />
         </div>
 
-        <div className="flex-none w-full sm:w-auto">
-          <CreateInvoiceDialog
-            products={products}
-            suppliers={suppliers}
-            myCompanies={myCompanies}
-          />
-        </div>
+        {!readOnly && (
+          <div className="flex-none w-full sm:w-auto">
+            <CreateInvoiceDialog
+              products={products}
+              suppliers={suppliers}
+              myCompanies={myCompanies}
+            />
+          </div>
+        )}
       </div>
 
       {/* TABLE */}
